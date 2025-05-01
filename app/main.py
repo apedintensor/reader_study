@@ -1,14 +1,25 @@
 # backend/app/main.py
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+
 from app.api.routes import api_router
 from app.auth.routes import auth_router
 from app.db.session import async_engine
 from app.db.base import Base
 from app.core.config import settings
 from app.db.init_db import init_db
+from app.core.exceptions import (
+    EntityNotFoundException, entity_not_found_exception_handler,
+    PermissionDeniedException, permission_denied_exception_handler,
+    DuplicateEntryException, duplicate_entry_exception_handler,
+    GenericServerError, generic_server_error_handler,
+    http_exception_handler, validation_exception_handler,
+    pydantic_validation_handler, unexpected_exception_handler
+)
 
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME)
@@ -21,6 +32,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register exception handlers
+app.add_exception_handler(EntityNotFoundException, entity_not_found_exception_handler)
+app.add_exception_handler(PermissionDeniedException, permission_denied_exception_handler)
+app.add_exception_handler(DuplicateEntryException, duplicate_entry_exception_handler)
+app.add_exception_handler(GenericServerError, generic_server_error_handler)
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, pydantic_validation_handler)
+app.add_exception_handler(Exception, unexpected_exception_handler)
 
 # Root endpoint
 @app.get("/", tags=["root"])
