@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+# Change the import style
+from app import crud
+# Import the schemas module directly and alias it
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/case/{case_id}", response_model=List[schemas.ImageRead])
+# Use the alias for the response_model
+@router.get("/case/{case_id}", response_model=List[app_schemas.ImageRead])
 def read_images_by_case(
     case_id: int,
     db: Session = Depends(deps.get_db),
@@ -19,11 +23,12 @@ def read_images_by_case(
     images = crud.image.get_multi_by_case(db=db, case_id=case_id, skip=skip, limit=limit)
     return images
 
-@router.post("/", response_model=schemas.ImageRead, status_code=201)
+# Use the alias for the response_model and input schema
+@router.post("/", response_model=app_schemas.ImageRead, status_code=201)
 def create_image(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    image_in: schemas.ImageCreate
+    image_in: app_schemas.ImageCreate
 ):
     """Create new image record."""
     # Add check if case exists
@@ -33,7 +38,8 @@ def create_image(
     image = crud.image.create(db=db, image=image_in)
     return image
 
-@router.get("/{image_id}", response_model=schemas.ImageRead)
+# Use the alias for the response_model
+@router.get("/{image_id}", response_model=app_schemas.ImageRead)
 def read_image(
     image_id: int,
     db: Session = Depends(deps.get_db),

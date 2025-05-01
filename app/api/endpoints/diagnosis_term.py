@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.DiagnosisTermRead])
+@router.get("/", response_model=List[app_schemas.DiagnosisTermRead])
 def read_diagnosis_terms(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -18,11 +19,11 @@ def read_diagnosis_terms(
     terms = crud.diagnosis_term.get_multi(db, skip=skip, limit=limit)
     return terms
 
-@router.post("/", response_model=schemas.DiagnosisTermRead, status_code=201)
+@router.post("/", response_model=app_schemas.DiagnosisTermRead, status_code=201)
 def create_diagnosis_term(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    term_in: schemas.DiagnosisTermCreate
+    term_in: app_schemas.DiagnosisTermCreate
 ):
     """Create new diagnosis term."""
     # Check if term already exists by name
@@ -32,7 +33,7 @@ def create_diagnosis_term(
     term = crud.diagnosis_term.create(db=db, term=term_in)
     return term
 
-@router.get("/{term_id}", response_model=schemas.DiagnosisTermRead)
+@router.get("/{term_id}", response_model=app_schemas.DiagnosisTermRead)
 def read_diagnosis_term(
     term_id: int,
     db: Session = Depends(deps.get_db),

@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/assessment/{assessment_id}", response_model=List[schemas.DiagnosisRead])
+@router.get("/assessment/{assessment_id}", response_model=List[app_schemas.DiagnosisRead])
 def read_diagnoses_by_assessment(
     assessment_id: int,
     db: Session = Depends(deps.get_db),
@@ -19,11 +20,11 @@ def read_diagnoses_by_assessment(
     diagnoses = crud.diagnosis.get_multi_by_assessment(db=db, assessment_id=assessment_id, skip=skip, limit=limit)
     return diagnoses
 
-@router.post("/", response_model=schemas.DiagnosisRead, status_code=201)
+@router.post("/", response_model=app_schemas.DiagnosisRead, status_code=201)
 def create_diagnosis(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    diagnosis_in: schemas.DiagnosisCreate
+    diagnosis_in: app_schemas.DiagnosisCreate
 ):
     """Create new diagnosis entry."""
     # Add checks (e.g., assessment exists, diagnosis term exists)

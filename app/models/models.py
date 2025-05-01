@@ -47,7 +47,7 @@ class Case(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     ground_truth_diagnosis = relationship("DiagnosisTerm", back_populates="cases")
-    metadata = relationship("CaseMetaData", back_populates="case", uselist=False) # One-to-one
+    case_metadata_relation = relationship("CaseMetaData", back_populates="case", uselist=False) # One-to-one
     images = relationship("Image", back_populates="case")
     ai_outputs = relationship("AIOutput", back_populates="case")
     assessments = relationship("Assessment", back_populates="case")
@@ -62,7 +62,7 @@ class CaseMetaData(Base):
     psoriasis_history = Column(Boolean)
     other_notes = Column(Text)
 
-    case = relationship("Case", back_populates="metadata")
+    case = relationship("Case", back_populates="case_metadata_relation")
 
 class Image(Base):
     __tablename__ = "images"

@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.RoleRead])
+@router.get("/", response_model=List[app_schemas.RoleRead])
 def read_roles(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -18,11 +19,11 @@ def read_roles(
     roles = crud.role.get_multi(db, skip=skip, limit=limit)
     return roles
 
-@router.post("/", response_model=schemas.RoleRead, status_code=201)
+@router.post("/", response_model=app_schemas.RoleRead, status_code=201)
 def create_role(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    role_in: schemas.RoleCreate
+    role_in: app_schemas.RoleCreate
 ):
     """Create new role."""
     # Check if role already exists by name
@@ -32,7 +33,7 @@ def create_role(
     role = crud.role.create(db=db, role=role_in)
     return role
 
-@router.get("/{role_id}", response_model=schemas.RoleRead)
+@router.get("/{role_id}", response_model=app_schemas.RoleRead)
 def read_role(
     role_id: int,
     db: Session = Depends(deps.get_db),

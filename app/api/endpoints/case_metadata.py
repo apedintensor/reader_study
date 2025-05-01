@@ -2,12 +2,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/case/{case_id}", response_model=schemas.CaseMetaDataRead)
+@router.get("/case/{case_id}", response_model=app_schemas.CaseMetaDataRead)
 def read_case_metadata_by_case(
     case_id: int,
     db: Session = Depends(deps.get_db),
@@ -18,12 +19,12 @@ def read_case_metadata_by_case(
         raise HTTPException(status_code=404, detail="Metadata not found for this case")
     return db_metadata
 
-@router.post("/case/{case_id}", response_model=schemas.CaseMetaDataRead, status_code=201)
+@router.post("/case/{case_id}", response_model=app_schemas.CaseMetaDataRead, status_code=201)
 def create_case_metadata(
     case_id: int,
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    metadata_in: schemas.CaseMetaDataCreate
+    metadata_in: app_schemas.CaseMetaDataCreate
 ):
     """Create new metadata for a case."""
     # Check if case exists

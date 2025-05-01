@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Any
 
-from app import crud, schemas, models
+# Change the import style
+from app import crud, models # models needed for update check
+# Import the schemas module directly and alias it
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.UserRead])
+# Use the alias for the response_model
+@router.get("/", response_model=List[app_schemas.UserRead])
 def read_users(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -18,11 +22,12 @@ def read_users(
     users = crud.user.get_multi(db, skip=skip, limit=limit)
     return users
 
-@router.post("/", response_model=schemas.UserRead, status_code=201)
+# Use the alias for the response_model and input schema
+@router.post("/", response_model=app_schemas.UserRead, status_code=201)
 def create_user(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    user_in: schemas.UserCreate
+    user_in: app_schemas.UserCreate
 ):
     """Create new user."""
     # Check if user already exists by email
@@ -37,7 +42,8 @@ def create_user(
     user = crud.user.create(db=db, user=user_in)
     return user
 
-@router.get("/{user_id}", response_model=schemas.UserRead)
+# Use the alias for the response_model
+@router.get("/{user_id}", response_model=app_schemas.UserRead)
 def read_user(
     user_id: int,
     db: Session = Depends(deps.get_db),
@@ -48,12 +54,13 @@ def read_user(
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
 
-@router.put("/{user_id}", response_model=schemas.UserRead)
+# Use the alias for the response_model and input schema
+@router.put("/{user_id}", response_model=app_schemas.UserRead)
 def update_user(
     user_id: int,
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    user_in: schemas.UserUpdate
+    user_in: app_schemas.UserUpdate
 ):
     """Update a user."""
     db_user = crud.user.get(db=db, user_id=user_id)
@@ -73,7 +80,8 @@ def update_user(
     user = crud.user.update(db=db, db_obj=db_user, obj_in=user_in)
     return user
 
-@router.delete("/{user_id}", response_model=schemas.UserRead)
+# Use the alias for the response_model
+@router.delete("/{user_id}", response_model=app_schemas.UserRead)
 def delete_user(
     user_id: int,
     db: Session = Depends(deps.get_db),

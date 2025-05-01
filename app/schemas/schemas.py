@@ -145,7 +145,7 @@ class CaseRead(CaseBase):
     ground_truth_diagnosis_id: Optional[int] = None
     created_at: datetime.datetime
     ground_truth_diagnosis: Optional[DiagnosisTermRead] = None # Nested ground truth
-    metadata: Optional[CaseMetaDataRead] = None # Nested metadata
+    case_metadata_relation: Optional[CaseMetaDataRead] = None # Nested metadata
     images: List[ImageRead] = [] # List of images
     ai_outputs: List[AIOutputRead] = [] # List of AI outputs
 

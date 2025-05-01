@@ -2,12 +2,13 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/assessment/{assessment_id}", response_model=schemas.ManagementPlanRead)
+@router.get("/assessment/{assessment_id}", response_model=app_schemas.ManagementPlanRead)
 def read_management_plan_by_assessment(
     assessment_id: int,
     db: Session = Depends(deps.get_db),
@@ -18,11 +19,11 @@ def read_management_plan_by_assessment(
         raise HTTPException(status_code=404, detail="Management plan not found for this assessment")
     return db_plan
 
-@router.post("/", response_model=schemas.ManagementPlanRead, status_code=201)
+@router.post("/", response_model=app_schemas.ManagementPlanRead, status_code=201)
 def create_management_plan(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    plan_in: schemas.ManagementPlanCreate
+    plan_in: app_schemas.ManagementPlanCreate
 ):
     """Create new management plan."""
     # Check if assessment exists

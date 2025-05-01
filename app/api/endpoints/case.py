@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+# Change the import style
+from app import crud
+# Import the schemas module directly and alias it
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.CaseRead])
+# Use the alias for the response_model
+@router.get("/", response_model=List[app_schemas.CaseRead])
 def read_cases(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -18,18 +22,20 @@ def read_cases(
     cases = crud.case.get_multi(db, skip=skip, limit=limit)
     return cases
 
-@router.post("/", response_model=schemas.CaseRead, status_code=201)
+# Use the alias for the response_model and input schema
+@router.post("/", response_model=app_schemas.CaseRead, status_code=201)
 def create_case(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    case_in: schemas.CaseCreate
+    case_in: app_schemas.CaseCreate
 ):
     """Create new case."""
     # Add checks (e.g., diagnosis term exists)
     case = crud.case.create(db=db, case=case_in)
     return case
 
-@router.get("/{case_id}", response_model=schemas.CaseRead)
+# Use the alias for the response_model
+@router.get("/{case_id}", response_model=app_schemas.CaseRead)
 def read_case(
     case_id: int,
     db: Session = Depends(deps.get_db),

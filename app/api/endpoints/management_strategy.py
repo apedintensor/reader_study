@@ -3,12 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
-from app import crud, schemas
+from app import crud
+from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
 
-@router.get("/", response_model=List[schemas.ManagementStrategyRead])
+@router.get("/", response_model=List[app_schemas.ManagementStrategyRead])
 def read_management_strategies(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -18,11 +19,11 @@ def read_management_strategies(
     strategies = crud.management_strategy.get_multi(db, skip=skip, limit=limit)
     return strategies
 
-@router.post("/", response_model=schemas.ManagementStrategyRead, status_code=201)
+@router.post("/", response_model=app_schemas.ManagementStrategyRead, status_code=201)
 def create_management_strategy(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    strategy_in: schemas.ManagementStrategyCreate
+    strategy_in: app_schemas.ManagementStrategyCreate
 ):
     """Create new management strategy."""
     # Check if strategy already exists by name
@@ -32,7 +33,7 @@ def create_management_strategy(
     strategy = crud.management_strategy.create(db=db, strategy=strategy_in)
     return strategy
 
-@router.get("/{strategy_id}", response_model=schemas.ManagementStrategyRead)
+@router.get("/{strategy_id}", response_model=app_schemas.ManagementStrategyRead)
 def read_management_strategy(
     strategy_id: int,
     db: Session = Depends(deps.get_db),
