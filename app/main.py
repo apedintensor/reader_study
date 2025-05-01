@@ -1,7 +1,12 @@
+# backend/app/main.py
 from fastapi import FastAPI
+from app.api.routes import api_router
+from app.db.session import engine
+from app.db.base import Base
 
-app = FastAPI()
+# Create DB tables
+Base.metadata.create_all(bind=engine)
 
-@app.get("/")
-def read_root():
-    return {"message": "Reader Study API is live"}
+app = FastAPI(title="Reader Study API")
+
+app.include_router(api_router)
