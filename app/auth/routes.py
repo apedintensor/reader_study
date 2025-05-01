@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.manager import fastapi_users, jwt_backend, current_active_user
+# Import User directly from auth.models for consistency
 from app.auth.models import User
 from app.auth.schemas import UserCreate, UserRead, UserUpdate
 

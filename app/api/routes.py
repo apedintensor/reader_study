@@ -17,7 +17,7 @@ from app.api.endpoints import (
 
 api_router = APIRouter()
 
-# Include endpoint routers
+# Include endpoint routers with appropriate prefixes and tags
 api_router.include_router(ai_output.router, prefix="/ai_outputs", tags=["AI Outputs"])
 api_router.include_router(assessment.router, prefix="/assessments", tags=["Assessments"])
 api_router.include_router(case.router, prefix="/cases", tags=["Cases"])
@@ -30,7 +30,8 @@ api_router.include_router(management_strategy.router, prefix="/management_strate
 api_router.include_router(role.router, prefix="/roles", tags=["Roles"])
 api_router.include_router(user.router, prefix="/users", tags=["Users"])
 
-
+# Health check endpoint
 @api_router.get("/ping")
 def ping():
+    """Health check endpoint to verify API is running."""
     return {"message": "pong"}

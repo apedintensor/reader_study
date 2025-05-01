@@ -1,5 +1,4 @@
 # backend/app/auth/manager.py
-import os
 from typing import Optional
 
 from fastapi import Depends, Request
@@ -11,17 +10,14 @@ from fastapi_users.authentication import (
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
 
+# Import the unified User model and configuration
 from app.auth.models import User
 from app.auth.db import get_user_db
-
-# Use environment variable for secret in production
-SECRET = "YOUR_SECRET_KEY_HERE"  # Change this to a secure secret!
-JWT_LIFETIME_SECONDS = 3600 * 24 * 30  # 30 days
-
+from app.core.config import settings
 
 class UserManager(IntegerIDMixin, BaseUserManager[User, int]):
-    reset_password_token_secret = SECRET
-    verification_token_secret = SECRET
+    reset_password_token_secret = settings.SECRET_KEY
+    verification_token_secret = settings.SECRET_KEY
 
     async def on_after_register(self, user: User, request: Optional[Request] = None):
         print(f"User {user.id} has registered.")
@@ -46,7 +42,7 @@ bearer_transport = BearerTransport(tokenUrl="auth/jwt/login")
 
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=JWT_LIFETIME_SECONDS)
+    return JWTStrategy(secret=settings.SECRET_KEY, lifetime_seconds=settings.JWT_LIFETIME_SECONDS)
 
 
 jwt_backend = AuthenticationBackend(

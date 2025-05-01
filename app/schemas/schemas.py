@@ -3,16 +3,12 @@ from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 import datetime
 
+# Import User schemas from auth module
+from app.auth.schemas import UserRead, UserCreate, UserUpdate
+
 # Base Schemas (common fields)
 class RoleBase(BaseModel):
     name: str
-
-class UserBase(BaseModel):
-    email: EmailStr
-    age_bracket: Optional[str] = None
-    gender: Optional[str] = None
-    years_experience: Optional[int] = None
-    years_derm_experience: Optional[int] = None
 
 class DiagnosisTermBase(BaseModel):
     name: str
@@ -60,10 +56,6 @@ class ManagementPlanBase(BaseModel):
 class RoleCreate(RoleBase):
     pass
 
-class UserCreate(UserBase):
-    password: str # Password needed for creation
-    role_id: int
-
 class DiagnosisTermCreate(DiagnosisTermBase):
     pass
 
@@ -101,15 +93,6 @@ class RoleRead(RoleBase):
 
     class Config:
         from_attributes = True # Pydantic v2
-
-class UserRead(UserBase):
-    id: int
-    role_id: int
-    created_at: datetime.datetime
-    role: RoleRead # Nested Role info
-
-    class Config:
-        from_attributes = True
 
 class DiagnosisTermRead(DiagnosisTermBase):
     id: int
@@ -190,9 +173,6 @@ class AssessmentRead(AssessmentBase):
         from_attributes = True
 
 # Schemas for Updates (Optional, define as needed)
-class UserUpdate(UserBase):
-    password: Optional[str] = None # Allow password update
-    role_id: Optional[int] = None
 
-# ... add other Update schemas if required ...
+# UserBase, UserCreate, UserRead, and UserUpdate are now imported from auth.schemas
 

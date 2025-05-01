@@ -1,3 +1,25 @@
+Metadata-Version: 2.4
+Name: backend
+Version: 0.1.0
+Summary: Reader Study Web API backend
+Requires-Python: >=3.13
+Description-Content-Type: text/markdown
+Requires-Dist: alembic>=1.15.2
+Requires-Dist: fastapi>=0.115.12
+Requires-Dist: psycopg2-binary>=2.9.10
+Requires-Dist: pydantic[email]>=2.11.4
+Requires-Dist: pydantic-settings>=2.0.0
+Requires-Dist: sqlalchemy>=2.0.40
+Requires-Dist: uvicorn>=0.34.2
+Requires-Dist: fastapi-users>=12.1.0
+Requires-Dist: passlib[bcrypt]>=1.7.4
+Requires-Dist: python-jose[cryptography]>=3.3.0
+Requires-Dist: python-multipart>=0.0.6
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: httpx>=0.24.1
+Requires-Dist: asyncpg>=0.28.0
+Requires-Dist: aiosqlite>=0.19.0
+
 # Reader Study Web Application Backend
 
 ## Overview

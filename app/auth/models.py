@@ -1,5 +1,5 @@
 # backend/app/auth/models.py
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 from fastapi_users.db import SQLAlchemyBaseUserTable
@@ -9,8 +9,8 @@ from sqlalchemy.orm import relationship
 from app.db.base import Base
 
 class User(SQLAlchemyBaseUserTable[int], Base):
-    # Change the table name to avoid conflicts with the existing User model
-    __tablename__ = "auth_users"
+    # Use the standard 'users' table name to match DBML
+    __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
@@ -19,7 +19,7 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     is_superuser = Column(Boolean, default=False, nullable=False)
     is_verified = Column(Boolean, default=False, nullable=False)
     
-    # The following fields are from our original User model
+    # Additional fields from our schema
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=True)
     age_bracket = Column(String, nullable=True)
     gender = Column(String, nullable=True)
@@ -28,6 +28,5 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
-    role = relationship("Role")
-    # Remove the problematic relationship
-    # We'll handle linking auth users to assessments separately if needed
+    role = relationship("Role", back_populates="users")
+    assessments = relationship("Assessment", back_populates="user")
