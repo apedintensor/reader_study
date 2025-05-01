@@ -1,0 +1,102 @@
+Table users {
+  id integer [primary key]
+  email varchar [unique, not null]
+  password_hash varchar
+  role_id integer [not null]
+  age_bracket varchar
+  gender varchar
+  years_experience integer
+  years_derm_experience integer
+  created_at timestamp
+}
+
+Table roles {
+  id integer [primary key]
+  name varchar [unique, not null] // GP, Nurse, Dermatologist, etc.
+}
+
+Table cases {
+  id integer [primary key]
+  ground_truth_diagnosis_id integer
+  typical_diagnosis boolean
+  created_at timestamp
+}
+
+Table case_metadata {
+  id integer [primary key]
+  case_id integer [not null, unique]
+  age integer
+  gender varchar
+  fever_history boolean
+  psoriasis_history boolean
+  other_notes text
+}
+
+Table diagnosis_terms {
+  id integer [primary key]
+  name varchar [unique, not null]
+}
+
+Table images {
+  id integer [primary key]
+  case_id integer [not null]
+  image_url varchar
+}
+
+Table ai_outputs {
+  id integer [primary key]
+  case_id integer [not null]
+  rank integer
+  prediction_id integer [not null] // FK to diagnosis_terms
+  confidence_score float
+}
+
+Table assessments {
+  id integer [primary key]
+  user_id integer [not null]
+  case_id integer [not null]
+  is_post_ai boolean
+  assessable_image_score integer
+  confidence_level_top1 integer
+  management_confidence integer
+  certainty_level integer
+  change_diagnosis_after_ai boolean
+  change_management_after_ai boolean
+  ai_usefulness varchar
+  created_at timestamp
+}
+
+Table diagnoses {
+  id integer [primary key]
+  assessment_id integer [not null]
+  rank integer
+  diagnosis_id integer [not null] // FK to diagnosis_terms
+  is_ground_truth boolean
+  diagnosis_accuracy integer
+}
+
+Table management_strategies {
+  id integer [primary key]
+  name varchar [unique, not null] // Reassure, Treat Locally, etc.
+}
+
+Table management_plans {
+  id integer [primary key]
+  assessment_id integer [not null, unique]
+  strategy_id integer [not null]
+  free_text varchar
+  quality_score integer
+}
+
+Ref: users.role_id > roles.id
+Ref: cases.ground_truth_diagnosis_id > diagnosis_terms.id
+Ref: case_metadata.case_id > cases.id
+Ref: images.case_id > cases.id
+Ref: ai_outputs.case_id > cases.id
+Ref: ai_outputs.prediction_id > diagnosis_terms.id
+Ref: assessments.user_id > users.id
+Ref: assessments.case_id > cases.id
+Ref: diagnoses.assessment_id > assessments.id
+Ref: diagnoses.diagnosis_id > diagnosis_terms.id
+Ref: management_plans.assessment_id > assessments.id
+Ref: management_plans.strategy_id > management_strategies.id
