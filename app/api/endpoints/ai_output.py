@@ -20,7 +20,7 @@ def read_ai_outputs_by_case(
     limit: int = 10
 ):
     """Retrieve AI outputs for a specific case."""
-    ai_outputs = crud.ai_output.get_multi_by_case(db=db, case_id=case_id, skip=skip, limit=limit)
+    ai_outputs = crud.ai_output["get_multi_by_case"](db=db, case_id=case_id, skip=skip, limit=limit)
     return ai_outputs
 
 # Use the alias for the response_model and input schema
@@ -32,7 +32,7 @@ def create_ai_output(
 ):
     """Create new AI output."""
     # Add checks if needed (e.g., case exists)
-    ai_output = crud.ai_output.create(db=db, ai_output=ai_output_in)
+    ai_output = crud.ai_output["create"](db=db, ai_output=ai_output_in)
     return ai_output
 
 # Add GET by ID, PUT, DELETE if needed

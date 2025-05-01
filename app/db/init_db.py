@@ -14,7 +14,7 @@ from app.crud.crud_role import role as role_crud
 from app.auth.schemas import UserCreate
 from app.auth.manager import UserManager
 from fastapi_users.exceptions import UserAlreadyExists
-from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 
 # Create initial superuser account

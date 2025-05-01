@@ -2,7 +2,8 @@
 from typing import AsyncGenerator
 
 from fastapi import Depends
-from fastapi_users.db import SQLAlchemyUserDatabase
+# Updated import for newer fastapi-users versions
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Import from our unified database configuration

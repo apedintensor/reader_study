@@ -2,7 +2,8 @@
 from typing import Optional, List
 from datetime import datetime
 
-from fastapi_users.db import SQLAlchemyBaseUserTable
+# Updated import for newer fastapi-users versions
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTable
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 

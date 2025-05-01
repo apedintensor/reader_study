@@ -48,3 +48,6 @@ backend.egg-info/SOURCES.txt
 backend.egg-info/dependency_links.txt
 backend.egg-info/requires.txt
 backend.egg-info/top_level.txt
+tests/test_assessment.py
+tests/test_auth.py
+tests/test_case.py

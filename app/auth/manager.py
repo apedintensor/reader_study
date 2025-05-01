@@ -8,7 +8,8 @@ from fastapi_users.authentication import (
     BearerTransport,
     JWTStrategy,
 )
-from fastapi_users.db import SQLAlchemyUserDatabase
+# Updated import for newer fastapi-users versions
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 
 # Import the unified User model and configuration
 from app.auth.models import User

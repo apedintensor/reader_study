@@ -16,7 +16,7 @@ def read_diagnosis_terms(
     limit: int = 100
 ):
     """Retrieve diagnosis terms."""
-    terms = crud.diagnosis_term.get_multi(db, skip=skip, limit=limit)
+    terms = crud.diagnosis_term["get_multi"](db, skip=skip, limit=limit)
     return terms
 
 @router.post("/", response_model=app_schemas.DiagnosisTermRead, status_code=201)
@@ -27,10 +27,10 @@ def create_diagnosis_term(
 ):
     """Create new diagnosis term."""
     # Check if term already exists by name
-    existing_term = crud.diagnosis_term.get_by_name(db=db, name=term_in.name)
+    existing_term = crud.diagnosis_term["get_by_name"](db=db, name=term_in.name)
     if existing_term:
         raise HTTPException(status_code=400, detail="Diagnosis term with this name already exists")
-    term = crud.diagnosis_term.create(db=db, term=term_in)
+    term = crud.diagnosis_term["create"](db=db, term=term_in)
     return term
 
 @router.get("/{term_id}", response_model=app_schemas.DiagnosisTermRead)
@@ -39,7 +39,7 @@ def read_diagnosis_term(
     db: Session = Depends(deps.get_db),
 ):
     """Get diagnosis term by ID."""
-    db_term = crud.diagnosis_term.get(db=db, term_id=term_id)
+    db_term = crud.diagnosis_term["get"](db=db, term_id=term_id)
     if db_term is None:
         raise HTTPException(status_code=404, detail="Diagnosis term not found")
     return db_term

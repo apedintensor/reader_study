@@ -60,7 +60,7 @@ class DiagnosisTermCreate(DiagnosisTermBase):
     pass
 
 class CaseCreate(CaseBase):
-    ground_truth_diagnosis_id: Optional[int] = None
+    ground_truth_diagnosis_id: int  # Changed from Optional[int] = None to make it required
 
 class CaseMetaDataCreate(CaseMetaDataBase):
     pass # Linked via Case creation
