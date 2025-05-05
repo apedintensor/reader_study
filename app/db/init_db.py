@@ -47,7 +47,7 @@ async def create_initial_superuser(db: AsyncSession):
 
 
 # Create initial roles
-def create_initial_roles(db: Session):
+async def create_initial_roles(db: Session):
     """Create initial roles if they don't exist"""
     initial_roles = [
         {"name": "Admin"},
@@ -56,13 +56,11 @@ def create_initial_roles(db: Session):
     ]
     
     for role_data in initial_roles:
-        # Fix: use the correct dictionary access for the CRUD functions
-        role = role_crud["get_by_name"](db=db, name=role_data["name"])
+        role = role_crud.get_by_name(db=db, name=role_data["name"])
         if not role:
-            # Fix: use the correct dictionary access for the CRUD functions
             from app.schemas.schemas import RoleCreate
             role_create = RoleCreate(name=role_data["name"])
-            role = role_crud["create"](db=db, role=role_create)
+            role = role_crud.create(db=db, role=role_create)
             print(f"Role '{role_data['name']}' created")
         else:
             print(f"Role '{role_data['name']}' already exists")
@@ -80,7 +78,7 @@ async def init_db():
     db = SessionLocal()
     try:
         # Create initial roles
-        create_initial_roles(db)
+        await create_initial_roles(db)
         
         # Close sync session
         db.close()

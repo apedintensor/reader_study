@@ -30,16 +30,16 @@ def create_management_plan(
     db_assessment = crud.assessment.get(db=db, assessment_id=plan_in.assessment_id)
     if not db_assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
+    
     # Check if strategy exists
     db_strategy = crud.management_strategy.get(db=db, strategy_id=plan_in.strategy_id)
     if not db_strategy:
         raise HTTPException(status_code=404, detail="Management strategy not found")
+    
     # Check if plan already exists for this assessment
     existing_plan = crud.management_plan.get_by_assessment(db=db, assessment_id=plan_in.assessment_id)
     if existing_plan:
         raise HTTPException(status_code=400, detail="Management plan already exists for this assessment")
-
+    
     plan = crud.management_plan.create(db=db, plan=plan_in)
     return plan
-
-# Add GET by ID, PUT, DELETE if needed

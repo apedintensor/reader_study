@@ -17,7 +17,7 @@ def read_diagnoses_by_assessment(
     limit: int = 100
 ):
     """Retrieve diagnoses for a specific assessment."""
-    diagnoses = crud.diagnosis["get_multi_by_assessment"](db=db, assessment_id=assessment_id, skip=skip, limit=limit)
+    diagnoses = crud.diagnosis.get_multi_by_assessment(db=db, assessment_id=assessment_id, skip=skip, limit=limit)
     return diagnoses
 
 @router.post("/", response_model=app_schemas.DiagnosisRead, status_code=201)
@@ -28,7 +28,7 @@ def create_diagnosis(
 ):
     """Create new diagnosis entry."""
     # Add checks (e.g., assessment exists, diagnosis term exists)
-    diagnosis = crud.diagnosis["create"](db=db, diagnosis=diagnosis_in)
+    diagnosis = crud.diagnosis.create(db=db, diagnosis=diagnosis_in)
     return diagnosis
 
 # Add GET by ID, PUT, DELETE if needed
