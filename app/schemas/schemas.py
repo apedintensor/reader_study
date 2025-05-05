@@ -14,7 +14,8 @@ class DiagnosisTermBase(BaseModel):
     name: str
 
 class CaseBase(BaseModel):
-    typical_diagnosis: Optional[bool] = None
+    ground_truth_diagnosis_id: int
+    typical_diagnosis: bool
 
 class CaseMetaDataBase(BaseModel):
     age: Optional[int] = None
@@ -60,7 +61,7 @@ class DiagnosisTermCreate(DiagnosisTermBase):
     pass
 
 class CaseCreate(CaseBase):
-    ground_truth_diagnosis_id: int  # Changed from Optional[int] = None to make it required
+    pass
 
 class CaseMetaDataCreate(CaseMetaDataBase):
     pass # Linked via Case creation
@@ -125,8 +126,8 @@ class AIOutputRead(AIOutputBase):
 
 class CaseRead(CaseBase):
     id: int
+    created_at: datetime.datetime | None = None
     ground_truth_diagnosis_id: Optional[int] = None
-    created_at: datetime.datetime
     ground_truth_diagnosis: Optional[DiagnosisTermRead] = None # Nested ground truth
     case_metadata_relation: Optional[CaseMetaDataRead] = None # Nested metadata
     images: List[ImageRead] = [] # List of images

@@ -51,6 +51,22 @@ async def test_create_case(client: AsyncClient, user_token_headers: dict):
     assert data["ground_truth_diagnosis_id"] == diagnosis_term["id"]
     assert data["typical_diagnosis"] == case_data["typical_diagnosis"]
     
+    # Create metadata for the case
+    metadata_data = {
+        "age": 45,
+        "gender": "male",
+        "fever_history": False,
+        "psoriasis_history": True,
+        "other_notes": "Test case metadata"
+    }
+    
+    metadata_response = await client.post(
+        f"/case_metadata/case/{data['id']}", 
+        headers=user_token_headers,
+        json=metadata_data
+    )
+    assert metadata_response.status_code == 201, f"Failed to create case metadata: {metadata_response.text}"
+    
     return data
 
 
@@ -122,3 +138,51 @@ async def test_get_nonexistent_case(client: AsyncClient, user_token_headers: dic
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND, "Should return 404 for nonexistent case"
     assert "not found" in response.text.lower(), "Error message should mention not found"
+
+
+@pytest.mark.asyncio
+async def test_get_case_images(client: AsyncClient, user_token_headers: dict):
+    """Test retrieving images for a case."""
+    # First create a case
+    case = await test_create_case(client, user_token_headers)
+    
+    response = await client.get(
+        f"/images/case/{case['id']}", 
+        headers=user_token_headers
+    )
+    assert response.status_code == 200, f"Failed to get case images: {response.text}"
+    data = response.json()
+    assert isinstance(data, list), "Expected a list of images"
+    # Note: The list might be empty if no images were added during case creation
+
+
+@pytest.mark.asyncio
+async def test_get_management_strategies(client: AsyncClient, user_token_headers: dict):
+    """Test retrieving management strategies."""
+    response = await client.get(
+        "/management_strategies/",
+        headers=user_token_headers
+    )
+    assert response.status_code == 200, f"Failed to get management strategies: {response.text}"
+    data = response.json()
+    assert isinstance(data, list), "Expected a list of management strategies"
+    assert len(data) > 0, "Expected at least one management strategy"
+    assert "id" in data[0], "Strategy id not found in response"
+    assert "name" in data[0], "Strategy name not found in response"
+
+
+@pytest.mark.asyncio
+async def test_get_case_metadata(client: AsyncClient, user_token_headers: dict):
+    """Test retrieving metadata for a case."""
+    # First create a case
+    case = await test_create_case(client, user_token_headers)
+    
+    response = await client.get(
+        f"/case_metadata/case/{case['id']}",
+        headers=user_token_headers
+    )
+    assert response.status_code == 200, f"Failed to get case metadata: {response.text}"
+    data = response.json()
+    assert "id" in data, "Metadata id not found in response"
+    assert "case_id" in data, "Case id not found in response"
+    assert data["case_id"] == case["id"], "Case id mismatch"
