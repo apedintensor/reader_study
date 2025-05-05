@@ -31,4 +31,11 @@ class AssessmentCRUD:
         db.refresh(db_assessment)
         return db_assessment
 
+    def get_by_composite_key(self, db: Session, user_id: int, case_id: int, is_post_ai: bool):
+        return db.query(models.Assessment).filter(
+            models.Assessment.user_id == user_id,
+            models.Assessment.case_id == case_id,
+            models.Assessment.is_post_ai == is_post_ai
+        ).first()
+
 assessment = AssessmentCRUD()

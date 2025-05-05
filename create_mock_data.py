@@ -326,12 +326,13 @@ async def create_assessments_and_diagnoses(
                 confidence_level_top1=random.randint(1, 5),
                 management_confidence=random.randint(1, 5),
                 certainty_level=random.randint(1, 5),
+                ai_usefulness=None,  # No AI usefulness for pre-AI assessment
                 created_at=generate_random_date()
             )
             db.add(pre_assessment)
             await db.commit()
             await db.refresh(pre_assessment)
-            logger.debug(f"Created pre-AI assessment #{pre_assessment.id} for user #{user.id}, case #{case.id}")
+            logger.debug(f"Created pre-AI assessment for user #{user.id}, case #{case.id}")
             result.append(pre_assessment)
             
             # Add diagnoses to pre-AI assessment
@@ -339,7 +340,9 @@ async def create_assessments_and_diagnoses(
             for rank, diagnosis_term in enumerate(selected_diagnoses, 1):
                 is_ground_truth = (diagnosis_term.id == case.ground_truth_diagnosis_id)
                 diagnosis = Diagnosis(
-                    assessment_id=pre_assessment.id,
+                    assessment_user_id=user.id,
+                    assessment_case_id=case.id,
+                    assessment_is_post_ai=False,
                     rank=rank,
                     diagnosis_id=diagnosis_term.id,
                     is_ground_truth=is_ground_truth,
@@ -350,20 +353,28 @@ async def create_assessments_and_diagnoses(
             # Add management plan to pre-AI assessment
             strategy = random.choice(management_strategies)
             management_plan = ManagementPlan(
-                assessment_id=pre_assessment.id,
+                assessment_user_id=user.id,
+                assessment_case_id=case.id,
+                assessment_is_post_ai=False,
                 strategy_id=strategy.id,
                 free_text=f"Management plan for case #{case.id}. " + 
                           f"{'Recommend follow-up in 6 weeks.' if random.random() > 0.5 else ''}",
                 quality_score=random.randint(1, 5)
             )
             db.add(management_plan)
+            await db.commit()
             
             # 70% chance of also creating a post-AI assessment
             if random.random() < 0.7:
-                # Create post-AI assessment (done after seeing AI results)
-                changed_diagnosis = random.random() < 0.4  # 40% chance of changing diagnosis
-                changed_management = random.random() < 0.3  # 30% chance of changing management
+                # Get pre-assessment diagnoses for comparison
+                pre_diagnoses = selected_diagnoses.copy()
+                pre_strategy = strategy
+
+                # Decide if we'll change diagnoses or management
+                should_change_diagnosis = random.random() < 0.4  # 40% chance
+                should_change_management = random.random() < 0.3  # 30% chance
                 
+                # Create post-AI assessment
                 post_assessment = Assessment(
                     user_id=user.id,
                     case_id=case.id,
@@ -372,26 +383,30 @@ async def create_assessments_and_diagnoses(
                     confidence_level_top1=random.randint(1, 5),
                     management_confidence=random.randint(1, 5),
                     certainty_level=random.randint(1, 5),
-                    change_diagnosis_after_ai=changed_diagnosis,
-                    change_management_after_ai=changed_management,
                     ai_usefulness=random.choice(["very helpful", "somewhat helpful", "neutral", "not helpful"]),
                     created_at=pre_assessment.created_at + timedelta(minutes=random.randint(5, 30))
                 )
                 db.add(post_assessment)
                 await db.commit()
                 await db.refresh(post_assessment)
-                logger.debug(f"Created post-AI assessment #{post_assessment.id} for user #{user.id}, case #{case.id}")
+                logger.debug(f"Created post-AI assessment for user #{user.id}, case #{case.id}")
                 result.append(post_assessment)
                 
                 # Add diagnoses to post-AI assessment
-                if changed_diagnosis:
-                    # If diagnosis changed, select potentially different diagnoses
-                    selected_diagnoses = random_sample_from_list(diagnosis_terms, 1, 3)
+                if should_change_diagnosis:
+                    # If diagnosis should change, select different diagnoses
+                    selected_diagnoses = random_sample_from_list(
+                        [d for d in diagnosis_terms if d not in pre_diagnoses],
+                        1,
+                        3
+                    )
                 
                 for rank, diagnosis_term in enumerate(selected_diagnoses, 1):
                     is_ground_truth = (diagnosis_term.id == case.ground_truth_diagnosis_id)
                     diagnosis = Diagnosis(
-                        assessment_id=post_assessment.id,
+                        assessment_user_id=user.id,
+                        assessment_case_id=case.id,
+                        assessment_is_post_ai=True,
                         rank=rank,
                         diagnosis_id=diagnosis_term.id,
                         is_ground_truth=is_ground_truth,
@@ -400,16 +415,17 @@ async def create_assessments_and_diagnoses(
                     db.add(diagnosis)
                 
                 # Add management plan to post-AI assessment
-                if changed_management:
-                    # If management changed, select a different strategy
-                    other_strategies = [s for s in management_strategies if s.id != strategy.id]
-                    strategy = random.choice(other_strategies)
-                    
+                if should_change_management:
+                    # If management should change, select a different strategy
+                    strategy = random.choice([s for s in management_strategies if s.id != pre_strategy.id])
+                
                 management_plan = ManagementPlan(
-                    assessment_id=post_assessment.id,
+                    assessment_user_id=user.id,
+                    assessment_case_id=case.id,
+                    assessment_is_post_ai=True,
                     strategy_id=strategy.id,
                     free_text=f"Post-AI management plan for case #{case.id}. " +
-                              f"{'Plan modified after reviewing AI results.' if changed_management else ''}",
+                              f"{'Plan modified after reviewing AI results.' if should_change_management else ''}",
                     quality_score=random.randint(1, 5)
                 )
                 db.add(management_plan)

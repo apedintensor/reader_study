@@ -139,19 +139,30 @@ class Assessment(Base):
         if not session:
             return None
 
-        # Get pre-AI assessment
-        stmt = select(Assessment).where(
-            Assessment.user_id == self.user_id,
-            Assessment.case_id == self.case_id,
-            Assessment.is_post_ai == False
-        )
-        pre_assessment = session.execute(stmt).scalar_one_or_none()
-        
-        if not pre_assessment or not pre_assessment.management_plan or not self.management_plan:
-            return None
+        try:
+            # Get pre-AI assessment
+            stmt = select(Assessment).where(
+                Assessment.user_id == self.user_id,
+                Assessment.case_id == self.case_id,
+                Assessment.is_post_ai == False
+            )
+            pre_assessment = session.execute(stmt).scalar_one_or_none()
+            
+            if not pre_assessment:
+                return None
 
-        # Compare management strategy IDs
-        return pre_assessment.management_plan.strategy_id != self.management_plan.strategy_id
+            # Make sure to load management plans
+            pre_plan = pre_assessment.management_plan
+            post_plan = self.management_plan
+
+            if not pre_plan or not post_plan:
+                return None
+
+            # Compare management strategy IDs
+            return pre_plan.strategy_id != post_plan.strategy_id
+        except Exception as e:
+            print(f"Error computing change_management_after_ai: {e}")
+            return None
 
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
