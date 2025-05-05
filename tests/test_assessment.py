@@ -422,3 +422,36 @@ async def test_change_management_after_ai_computation(client: AsyncClient, user_
     
     # Verify change_management_after_ai is True
     assert assessment_data["change_management_after_ai"] is True
+
+@pytest.mark.asyncio
+async def test_update_assessment(client: AsyncClient, user_token_headers: dict):
+    """Test updating an assessment."""
+    # First create an assessment
+    assessment = await test_create_assessment(client, user_token_headers)
+    
+    # Update data
+    update_data = {
+        "confidence_level_top1": 5,
+        "management_confidence": 5,
+        "certainty_level": 5,
+        "ai_usefulness": "very helpful"
+    }
+    
+    response = await client.put(
+        f"/assessments/{assessment['user_id']}/{assessment['case_id']}/{assessment['is_post_ai']}",
+        headers=user_token_headers,
+        json=update_data
+    )
+    assert response.status_code == 200, f"Failed to update assessment: {response.text}"
+    data = response.json()
+    
+    # Check that fields were updated
+    assert data["confidence_level_top1"] == update_data["confidence_level_top1"]
+    assert data["management_confidence"] == update_data["management_confidence"]
+    assert data["certainty_level"] == update_data["certainty_level"]
+    assert data["ai_usefulness"] == update_data["ai_usefulness"]
+    
+    # Verify unchanged fields
+    assert data["user_id"] == assessment["user_id"]
+    assert data["case_id"] == assessment["case_id"]
+    assert data["is_post_ai"] == assessment["is_post_ai"]

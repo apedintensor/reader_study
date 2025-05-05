@@ -94,3 +94,24 @@ async def create_assessment(
     
     assessment = crud.assessment.create(db=db, assessment=assessment_in)
     return assessment
+
+@router.put("/{user_id}/{case_id}/{is_post_ai}", response_model=app_schemas.AssessmentRead)
+def update_assessment(
+    user_id: int,
+    case_id: int,
+    is_post_ai: bool,
+    *,
+    db: Session = Depends(deps.get_db),
+    assessment_in: app_schemas.AssessmentUpdate
+):
+    """Update an assessment."""
+    assessment = crud.assessment.update(
+        db=db, 
+        user_id=user_id,
+        case_id=case_id,
+        is_post_ai=is_post_ai,
+        assessment=assessment_in
+    )
+    if assessment is None:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return assessment

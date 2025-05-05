@@ -31,6 +31,19 @@ class AssessmentCRUD:
         db.refresh(db_assessment)
         return db_assessment
 
+    def update(self, db: Session, user_id: int, case_id: int, is_post_ai: bool, assessment: schemas.AssessmentUpdate):
+        db_assessment = self.get(db=db, user_id=user_id, case_id=case_id, is_post_ai=is_post_ai)
+        if not db_assessment:
+            return None
+            
+        for field, value in assessment.model_dump(exclude_unset=True).items():
+            setattr(db_assessment, field, value)
+            
+        db.add(db_assessment)
+        db.commit()
+        db.refresh(db_assessment)
+        return db_assessment
+
     def get_by_composite_key(self, db: Session, user_id: int, case_id: int, is_post_ai: bool):
         return db.query(models.Assessment).filter(
             models.Assessment.user_id == user_id,

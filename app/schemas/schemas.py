@@ -41,6 +41,17 @@ class AssessmentBase(BaseModel):
     certainty_level: Optional[int] = None
     ai_usefulness: Optional[str] = None
 
+# Add AssessmentUpdate schema before AssessmentCreate
+class AssessmentUpdate(BaseModel):
+    assessable_image_score: Optional[int] = None
+    confidence_level_top1: Optional[int] = None
+    management_confidence: Optional[int] = None
+    certainty_level: Optional[int] = None
+    ai_usefulness: Optional[str] = None
+
+class AssessmentCreate(AssessmentBase):
+    pass
+
 class DiagnosisBase(BaseModel):
     rank: int
     is_ground_truth: Optional[bool] = None
