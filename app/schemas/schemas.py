@@ -32,13 +32,13 @@ class AIOutputBase(BaseModel):
     confidence_score: Optional[float] = None
 
 class AssessmentBase(BaseModel):
+    user_id: int
+    case_id: int
     is_post_ai: bool
     assessable_image_score: Optional[int] = None
     confidence_level_top1: Optional[int] = None
     management_confidence: Optional[int] = None
     certainty_level: Optional[int] = None
-    change_diagnosis_after_ai: Optional[bool] = None
-    change_management_after_ai: Optional[bool] = None
     ai_usefulness: Optional[str] = None
 
 class DiagnosisBase(BaseModel):
@@ -74,18 +74,21 @@ class AIOutputCreate(AIOutputBase):
     prediction_id: int
 
 class AssessmentCreate(AssessmentBase):
-    user_id: int
-    case_id: int
+    pass
 
 class DiagnosisCreate(DiagnosisBase):
-    assessment_id: int
+    assessment_user_id: int
+    assessment_case_id: int
+    assessment_is_post_ai: bool
     diagnosis_id: int
 
 class ManagementStrategyCreate(ManagementStrategyBase):
     pass
 
 class ManagementPlanCreate(ManagementPlanBase):
-    assessment_id: int
+    assessment_user_id: int
+    assessment_case_id: int
+    assessment_is_post_ai: bool
     strategy_id: int
 
 # Schemas for Reading (inheriting from Base, adding ID and relationships)
@@ -144,7 +147,9 @@ class ManagementStrategyRead(ManagementStrategyBase):
 
 class ManagementPlanRead(ManagementPlanBase):
     id: int
-    assessment_id: int
+    assessment_user_id: int
+    assessment_case_id: int
+    assessment_is_post_ai: bool
     strategy_id: int
     strategy: ManagementStrategyRead # Nested strategy info
 
@@ -153,7 +158,9 @@ class ManagementPlanRead(ManagementPlanBase):
 
 class DiagnosisRead(DiagnosisBase):
     id: int
-    assessment_id: int
+    assessment_user_id: int
+    assessment_case_id: int
+    assessment_is_post_ai: bool
     diagnosis_id: int
     diagnosis_term: DiagnosisTermRead # Nested diagnosis term info
 
@@ -161,14 +168,13 @@ class DiagnosisRead(DiagnosisBase):
         from_attributes = True
 
 class AssessmentRead(AssessmentBase):
-    id: int
-    user_id: int
-    case_id: int
     created_at: datetime.datetime
-    user: UserRead # Nested user info (optional, could be just ID)
-    case: CaseRead # Nested case info (optional, could be just ID)
-    diagnoses: List[DiagnosisRead] = [] # List of diagnoses
-    management_plan: Optional[ManagementPlanRead] = None # Nested management plan
+    change_diagnosis_after_ai: Optional[bool] = None
+    change_management_after_ai: Optional[bool] = None
+    user: Optional[UserRead] = None
+    case: Optional[CaseRead] = None
+    diagnoses: List[DiagnosisRead] = []
+    management_plan: Optional[ManagementPlanRead] = None
 
     class Config:
         from_attributes = True

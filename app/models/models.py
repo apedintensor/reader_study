@@ -2,7 +2,7 @@
 # Refactored models for clarity and optimization
 
 from sqlalchemy import (
-    Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text
+    Column, Integer, String, Boolean, Float, ForeignKey, DateTime, Text, ForeignKeyConstraint, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -73,16 +73,13 @@ class AIOutput(Base):
 
 class Assessment(Base):
     __tablename__ = "assessments"
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False)
-    is_post_ai = Column(Boolean)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, primary_key=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False, primary_key=True)
+    is_post_ai = Column(Boolean, nullable=False, primary_key=True)
     assessable_image_score = Column(Integer)
     confidence_level_top1 = Column(Integer)
     management_confidence = Column(Integer)
     certainty_level = Column(Integer)
-    change_diagnosis_after_ai = Column(Boolean)
-    change_management_after_ai = Column(Boolean)
     ai_usefulness = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -91,14 +88,88 @@ class Assessment(Base):
     diagnoses = relationship("Diagnosis", back_populates="assessment")
     management_plan = relationship("ManagementPlan", back_populates="assessment", uselist=False)
 
+    __table_args__ = (
+        # Adding an explicit unique constraint is not necessary since these columns are already
+        # part of the primary key, which enforces uniqueness
+    )
+
+    @property
+    def change_diagnosis_after_ai(self) -> bool | None:
+        """Compute if diagnosis changed after AI by comparing with pre-AI assessment"""
+        if not self.is_post_ai:
+            return None
+            
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+        from sqlalchemy.orm.session import object_session
+
+        session = object_session(self)
+        if not session:
+            return None
+
+        # Get pre-AI assessment
+        stmt = select(Assessment).where(
+            Assessment.user_id == self.user_id,
+            Assessment.case_id == self.case_id,
+            Assessment.is_post_ai == False
+        )
+        pre_assessment = session.execute(stmt).scalar_one_or_none()
+        
+        if not pre_assessment:
+            return None
+
+        # Get diagnoses for both assessments
+        pre_diagnoses = {d.diagnosis_id: d.rank for d in pre_assessment.diagnoses}
+        post_diagnoses = {d.diagnosis_id: d.rank for d in self.diagnoses}
+        
+        # Compare diagnoses
+        return pre_diagnoses != post_diagnoses
+
+    @property
+    def change_management_after_ai(self) -> bool | None:
+        """Compute if management changed after AI by comparing with pre-AI assessment"""
+        if not self.is_post_ai:
+            return None
+            
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+        from sqlalchemy.orm.session import object_session
+
+        session = object_session(self)
+        if not session:
+            return None
+
+        # Get pre-AI assessment
+        stmt = select(Assessment).where(
+            Assessment.user_id == self.user_id,
+            Assessment.case_id == self.case_id,
+            Assessment.is_post_ai == False
+        )
+        pre_assessment = session.execute(stmt).scalar_one_or_none()
+        
+        if not pre_assessment or not pre_assessment.management_plan or not self.management_plan:
+            return None
+
+        # Compare management strategy IDs
+        return pre_assessment.management_plan.strategy_id != self.management_plan.strategy_id
+
 class Diagnosis(Base):
     __tablename__ = "diagnoses"
     id = Column(Integer, primary_key=True, index=True)
-    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False)
+    assessment_user_id = Column(Integer, nullable=False)
+    assessment_case_id = Column(Integer, nullable=False)
+    assessment_is_post_ai = Column(Boolean, nullable=False)
     rank = Column(Integer)
     diagnosis_id = Column(Integer, ForeignKey("diagnosis_terms.id"), nullable=False)
     is_ground_truth = Column(Boolean)
     diagnosis_accuracy = Column(Integer)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ['assessment_user_id', 'assessment_case_id', 'assessment_is_post_ai'],
+            ['assessments.user_id', 'assessments.case_id', 'assessments.is_post_ai']
+        ),
+    )
 
     assessment = relationship("Assessment", back_populates="diagnoses")
     diagnosis_term = relationship("DiagnosisTerm", back_populates="diagnoses")
@@ -113,10 +184,21 @@ class ManagementStrategy(Base):
 class ManagementPlan(Base):
     __tablename__ = "management_plans"
     id = Column(Integer, primary_key=True, index=True)
-    assessment_id = Column(Integer, ForeignKey("assessments.id"), nullable=False, unique=True)
+    assessment_user_id = Column(Integer, nullable=False)
+    assessment_case_id = Column(Integer, nullable=False)
+    assessment_is_post_ai = Column(Boolean, nullable=False)
     strategy_id = Column(Integer, ForeignKey("management_strategies.id"), nullable=False)
     free_text = Column(String)
     quality_score = Column(Integer)
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ['assessment_user_id', 'assessment_case_id', 'assessment_is_post_ai'],
+            ['assessments.user_id', 'assessments.case_id', 'assessments.is_post_ai']
+        ),
+        # Keep one management plan per assessment
+        UniqueConstraint('assessment_user_id', 'assessment_case_id', 'assessment_is_post_ai'),
+    )
 
     assessment = relationship("Assessment", back_populates="management_plan")
     strategy = relationship("ManagementStrategy", back_populates="management_plans")

@@ -3,10 +3,17 @@ from sqlalchemy.orm import Session
 from app.models import models
 from app.schemas import schemas
 from typing import List, Optional
+from sqlalchemy import and_
 
 class AssessmentCRUD:
-    def get(self, db: Session, assessment_id: int):
-        return db.query(models.Assessment).filter(models.Assessment.id == assessment_id).first()
+    def get(self, db: Session, user_id: int, case_id: int, is_post_ai: bool):
+        return db.query(models.Assessment).filter(
+            and_(
+                models.Assessment.user_id == user_id,
+                models.Assessment.case_id == case_id,
+                models.Assessment.is_post_ai == is_post_ai
+            )
+        ).first()
 
     def get_multi_by_user(self, db: Session, user_id: int, skip: int = 0, limit: int = 100):
         return db.query(models.Assessment).filter(models.Assessment.user_id == user_id).offset(skip).limit(limit).all()
