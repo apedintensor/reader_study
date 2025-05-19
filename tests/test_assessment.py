@@ -455,3 +455,71 @@ async def test_update_assessment(client: AsyncClient, user_token_headers: dict):
     assert data["user_id"] == assessment["user_id"]
     assert data["case_id"] == assessment["case_id"]
     assert data["is_post_ai"] == assessment["is_post_ai"]
+
+@pytest.mark.asyncio
+async def test_update_management_plan(client: AsyncClient, user_token_headers: dict):
+    """Test updating a management plan."""
+    # First create an assessment with a management plan
+    case = await create_case(client, user_token_headers)
+    response = await client.get("/auth/me", headers=user_token_headers)
+    user_data = response.json()
+    user_id = user_data["id"]
+
+    # Create strategies
+    strategy1_response = await client.post(
+        "/management_strategies/",
+        headers=user_token_headers,
+        json={"name": f"Test Strategy 1 {datetime.utcnow().timestamp()}"}
+    )
+    strategy1 = strategy1_response.json()
+    strategy2_response = await client.post(
+        "/management_strategies/",
+        headers=user_token_headers,
+        json={"name": f"Test Strategy 2 {datetime.utcnow().timestamp()}"}
+    )
+    strategy2 = strategy2_response.json()
+
+    # Create assessment
+    assessment_data = {
+        "user_id": user_id,
+        "case_id": case["id"],
+        "is_post_ai": False,
+        "confidence_level_top1": 3,
+        "management_confidence": 3,
+        "certainty_level": 3
+    }
+    assessment_response = await client.post("/assessments/", json=assessment_data, headers=user_token_headers)
+    assert assessment_response.status_code == 201
+
+    # Create initial management plan
+    plan_data = {
+        "assessment_user_id": user_id,
+        "assessment_case_id": case["id"],
+        "assessment_is_post_ai": False,
+        "strategy_id": strategy1["id"],
+        "free_text": "Initial plan",
+        "quality_score": 3
+    }
+    plan_response = await client.post("/management_plans/", json=plan_data, headers=user_token_headers)
+    assert plan_response.status_code == 201
+    plan = plan_response.json()
+
+    # Update management plan
+    update_data = {
+        "strategy_id": strategy2["id"],
+        "free_text": "Updated plan",
+        "quality_score": 5
+    }
+    update_response = await client.put(
+        f"/management_plans/assessment/{user_id}/{case['id']}/false",
+        headers=user_token_headers,
+        json=update_data
+    )
+    assert update_response.status_code == 200, f"Failed to update management plan: {update_response.text}"
+    updated_plan = update_response.json()
+
+    # Verify changes
+    assert updated_plan["strategy_id"] == strategy2["id"]
+    assert updated_plan["free_text"] == "Updated plan"
+    assert updated_plan["quality_score"] == 5
+    assert updated_plan["id"] == plan["id"]  # Should be same plan ID

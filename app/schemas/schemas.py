@@ -64,6 +64,73 @@ class ManagementPlanBase(BaseModel):
     free_text: Optional[str] = None
     quality_score: Optional[int] = None
 
+class ManagementPlanUpdate(BaseModel):
+    strategy_id: Optional[int] = None
+    free_text: Optional[str] = None
+    quality_score: Optional[int] = None
+
+class CaseBase(BaseModel):
+    ground_truth_diagnosis_id: int
+    typical_diagnosis: bool
+
+class CaseMetaDataBase(BaseModel):
+    age: Optional[int] = None
+    gender: Optional[str] = None
+    fever_history: Optional[bool] = None
+    psoriasis_history: Optional[bool] = None
+    other_notes: Optional[str] = None
+
+class ImageBase(BaseModel):
+    image_url: str
+
+class AIOutputBase(BaseModel):
+    rank: Optional[int] = None
+    confidence_score: Optional[float] = None
+
+class AssessmentBase(BaseModel):
+    user_id: int
+    case_id: int
+    is_post_ai: bool
+    assessable_image_score: Optional[int] = None
+    confidence_level_top1: Optional[int] = None
+    management_confidence: Optional[int] = None
+    certainty_level: Optional[int] = None
+    ai_usefulness: Optional[str] = None
+
+# Add AssessmentUpdate schema before AssessmentCreate
+class AssessmentUpdate(BaseModel):
+    assessable_image_score: Optional[int] = None
+    confidence_level_top1: Optional[int] = None
+    management_confidence: Optional[int] = None
+    certainty_level: Optional[int] = None
+    ai_usefulness: Optional[str] = None
+
+class AssessmentCreate(AssessmentBase):
+    pass
+
+class DiagnosisBase(BaseModel):
+    rank: int
+    is_ground_truth: Optional[bool] = None
+    diagnosis_accuracy: Optional[int] = None
+
+class ManagementStrategyBase(BaseModel):
+    name: str
+
+class ManagementPlanBase(BaseModel):
+    free_text: Optional[str] = None
+    quality_score: Optional[int] = None
+
+class ManagementPlanUpdate(BaseModel):
+    strategy_id: Optional[int] = None
+    free_text: Optional[str] = None
+    quality_score: Optional[int] = None
+
+class ManagementPlanCreate(ManagementPlanBase):
+    assessment_user_id: int
+    assessment_case_id: int
+    assessment_is_post_ai: bool
+    strategy_id: int
+
 # Schemas for Creation (inheriting from Base, adding specific fields)
 class RoleCreate(RoleBase):
     pass

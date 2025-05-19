@@ -60,3 +60,24 @@ def create_management_plan(
     
     plan = crud.management_plan.create(db=db, plan=plan_in)
     return plan
+
+@router.put("/assessment/{user_id}/{case_id}/{is_post_ai}", response_model=app_schemas.ManagementPlanRead)
+def update_management_plan(
+    user_id: int,
+    case_id: int,
+    is_post_ai: bool,
+    *,
+    db: Session = Depends(deps.get_db),
+    plan_in: app_schemas.ManagementPlanUpdate
+):
+    """Update a management plan."""
+    # Check if strategy_id is being updated and exists
+    if plan_in.strategy_id is not None:
+        db_strategy = crud.management_strategy.get(db=db, strategy_id=plan_in.strategy_id)
+        if not db_strategy:
+            raise HTTPException(status_code=404, detail="Management strategy not found")
+
+    plan = crud.management_plan.update(db=db, user_id=user_id, case_id=case_id, is_post_ai=is_post_ai, plan=plan_in)
+    if plan is None:
+        raise HTTPException(status_code=404, detail="Management plan not found")
+    return plan
