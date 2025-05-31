@@ -25,7 +25,7 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 # CSV Headers
 CSV_HEADERS = [
-    "Ground truth Filename", "Study case id", "Responder id",
+    "Ground truth Filename", "Case Image", "Responder id",
     "Preferred diagnosis", "Preferred diagnosis confidence (0-4)",
     "Differential diagnosis", "Secondary differential diagnosis",
     "Recommended management", "Recommended management specified / other",
