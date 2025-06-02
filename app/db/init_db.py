@@ -47,7 +47,7 @@ async def create_initial_superuser(db: AsyncSession):
 
 
 # Create initial roles
-async def create_initial_roles(db: Session):
+def create_initial_roles(db: Session):
     """Create initial roles if they don't exist"""
     initial_roles = [
         {"name": "Admin"},
@@ -72,13 +72,12 @@ async def init_db():
     # Create tables if they don't exist
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
-    # Create initial data using sync session for compatibility with existing CRUD
+      # Create initial data using sync session for compatibility with existing CRUD
     from app.db.session import SessionLocal
     db = SessionLocal()
     try:
         # Create initial roles
-        await create_initial_roles(db)
+        create_initial_roles(db)
         
         # Close sync session
         db.close()
