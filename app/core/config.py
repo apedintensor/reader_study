@@ -12,6 +12,29 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
+def _get_database_urls() -> tuple[str, str]:
+    """Get database URLs for async and sync connections."""
+    if DATABASE_URL:
+        # Ensure it's a PostgreSQL URL for Render
+        if DATABASE_URL.startswith("postgres://"):
+            async_url = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+            sync_url = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+        elif DATABASE_URL.startswith("postgresql://"):
+            async_url = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            sync_url = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+        else:
+            # Fallback to SQLite if DATABASE_URL is set but not recognized as postgres
+            print(f"Warning: DATABASE_URL is set but not recognized as a PostgreSQL URL: {DATABASE_URL}. Falling back to SQLite.")
+            async_url = "sqlite+aiosqlite:///./test.db"
+            sync_url = "sqlite:///./test.db"
+        return async_url, sync_url
+    else:
+        # Fallback to SQLite for local development if DATABASE_URL is not set
+        async_url = os.getenv("ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db")
+        sync_url = os.getenv("SYNC_DATABASE_URI", "sqlite:///./test.db")
+        return async_url, sync_url
+
+
 class Settings(BaseSettings):
     # Basic settings
     PROJECT_NAME: str = "Reader Study Web API"
@@ -22,33 +45,16 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_LIFETIME_SECONDS: int = 3600 * 24 * 7  # 1 week
     
-    # Database settings
-    # Determine database URIs based on whether DATABASE_URL is set (for Render/PostgreSQL)
-    if DATABASE_URL:
-        # Ensure it's a PostgreSQL URL for Render
-        if DATABASE_URL.startswith("postgres://"):
-            ASYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-            SYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1) # Or psycopg
-        elif DATABASE_URL.startswith("postgresql://"): # Already in a compatible format for replacement
-            ASYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-            SYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1) # Or psycopg
-        else: # Fallback or raise error if DATABASE_URL is not a postgres URL
-            # For simplicity, falling back to SQLite if DATABASE_URL is set but not recognized as postgres
-            # In a real scenario, you might want to raise an error here.
-            print(f"Warning: DATABASE_URL is set but not recognized as a PostgreSQL URL: {DATABASE_URL}. Falling back to SQLite.")
-            ASYNC_DB_URL = "sqlite+aiosqlite:///./test.db"
-            SYNC_DB_URL = "sqlite:///./test.db"
-        
-        SQLALCHEMY_ASYNC_DATABASE_URI: str = ASYNC_DB_URL
-        SQLALCHEMY_SYNC_DATABASE_URI: str = SYNC_DB_URL
-    else:
-        # Fallback to SQLite for local development if DATABASE_URL is not set
-        SQLALCHEMY_ASYNC_DATABASE_URI: str = os.getenv(
-            "ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db"
-        )
-        SQLALCHEMY_SYNC_DATABASE_URI: str = os.getenv(
-            "SYNC_DATABASE_URI", "sqlite:///./test.db"
-        )
+    # Database settings - properly typed
+    SQLALCHEMY_ASYNC_DATABASE_URI: str = ""
+    SQLALCHEMY_SYNC_DATABASE_URI: str = ""
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Set database URLs after initialization
+        async_url, sync_url = _get_database_urls()
+        self.SQLALCHEMY_ASYNC_DATABASE_URI = async_url
+        self.SQLALCHEMY_SYNC_DATABASE_URI = sync_url
     
     # CORS settings
     CORS_ORIGINS: list = ["*"]  # In production, specify exact domain
