@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
+from fastapi.staticfiles import StaticFiles  # Add this import
 
 from app.api.routes import api_router
 from app.auth.routes import auth_router
@@ -70,8 +71,11 @@ async def admin():
 
 # Include the authentication router
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-# Include the main API router
-app.include_router(api_router)
+# Mount the API router under /api
+app.include_router(api_router, prefix=settings.API_V1_STR)
+
+# Serve the frontend static files from the root
+app.mount("/", StaticFiles(directory="frontend_dist", html=True), name="frontend")
 
 # Add startup event to create tables and initialize data
 @app.on_event("startup")

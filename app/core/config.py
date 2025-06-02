@@ -38,7 +38,7 @@ def _get_database_urls() -> tuple[str, str]:
 class Settings(BaseSettings):
     # Basic settings
     PROJECT_NAME: str = "Reader Study Web API"
-    API_V1_STR: str = "/api/v1"
+    API_V1_STR: str = "/api"  # Updated to /api
     
     # Security settings
     SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
