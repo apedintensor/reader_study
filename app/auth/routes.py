@@ -18,7 +18,6 @@ auth_router.include_router(
 
 auth_router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
-    prefix="/register",
     tags=["auth"],
 )
 

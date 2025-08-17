@@ -12,6 +12,7 @@ This script creates test data including:
 """
 import asyncio
 import random
+import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 import logging
@@ -61,12 +62,35 @@ MANAGEMENT_STRATEGIES = [
     "Immunotherapy", "Chemotherapy", "Radiotherapy"
 ]
 
+# Optional fallback patterns (used only if mock file missing)
 IMAGE_URL_PATTERNS = [
     "https://example.com/images/case_{case_id}_front.jpg",
     "https://example.com/images/case_{case_id}_back.jpg",
     "https://example.com/images/case_{case_id}_close.jpg",
     "https://example.com/images/case_{case_id}_dermoscopic.jpg",
 ]
+
+MOCK_IMAGE_FILE = "mock-skin-images.txt"
+
+def load_mock_image_urls() -> list[str]:
+    """Load list of mock skin image URLs from file.
+
+    Returns fallback pattern-based (empty list -> patterns) if file missing or empty.
+    """
+    if os.path.exists(MOCK_IMAGE_FILE):
+        try:
+            with open(MOCK_IMAGE_FILE, "r", encoding="utf-8") as f:
+                urls = [ln.strip() for ln in f if ln.strip() and not ln.startswith("#")]
+            if urls:
+                logger.info(f"Loaded {len(urls)} mock skin image URLs from {MOCK_IMAGE_FILE}")
+                return urls
+            else:
+                logger.warning(f"No URLs found in {MOCK_IMAGE_FILE}; falling back to generated patterns")
+        except Exception as e:
+            logger.warning(f"Failed reading {MOCK_IMAGE_FILE}: {e}; using fallback patterns")
+    else:
+        logger.info(f"Mock image file {MOCK_IMAGE_FILE} not found; using fallback patterns")
+    return []  # Indicate to use internal patterns
 
 # Helper functions
 def generate_random_date(start_date=None, days_back=365):
@@ -202,14 +226,16 @@ async def create_test_users(db: AsyncSession, role_ids: List[int], count=10) -> 
     return result
 
 async def create_test_cases(
-    db: AsyncSession, 
-    diagnosis_terms: List[DiagnosisTerm], 
+    db: AsyncSession,
+    diagnosis_terms: List[DiagnosisTerm],
     count=40
 ) -> List[Case]:
     """Create test cases with metadata and images"""
     logger.info(f"Creating {count} test cases...")
     result = []
     
+    mock_image_urls = load_mock_image_urls()
+
     for i in range(1, count + 1):
         # Choose a random diagnosis term for ground truth
         diagnosis_term = random.choice(diagnosis_terms)
@@ -238,16 +264,17 @@ async def create_test_cases(
         )
         db.add(metadata)
         
-        # Create images for case (1-4 images per case)
-        num_images = random.randint(1, 4)
-        for j in range(num_images):
-            img_pattern = random_choice_from_list(IMAGE_URL_PATTERNS)
-            image_url = img_pattern.format(case_id=case.id)
-            image = Image(
-                case_id=case.id,
-                image_url=image_url
-            )
-            db.add(image)
+        # Assign exactly 3 random images per case.
+        # If mock file loaded, sample from it (with replacement across cases, without within case).
+        if mock_image_urls:
+            chosen_urls = random.sample(mock_image_urls, k=min(3, len(mock_image_urls)))
+        else:
+            # Fallback: build 3 patterned URLs
+            chosen_patterns = random.sample(IMAGE_URL_PATTERNS, k=min(3, len(IMAGE_URL_PATTERNS)))
+            chosen_urls = [p.format(case_id=case.id) for p in chosen_patterns]
+
+        for image_url in chosen_urls:
+            db.add(Image(case_id=case.id, image_url=image_url))
         
         await db.commit()
         result.append(case)

@@ -25,10 +25,10 @@ from app.core.exceptions import (
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Configure CORS
+# Configure CORS using settings (can be overridden via CORS_ORIGINS env var)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -70,9 +70,9 @@ async def admin():
     return RedirectResponse(url="/docs")
 
 # Include the authentication router
-app.include_router(auth_router, prefix="/auth", tags=["auth"])
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 # Mount the API router under /api
-app.include_router(api_router, prefix=settings.API_V1_STR)
+app.include_router(api_router, prefix="/api")
 
 # Serve the frontend static files from the root
 app.mount("/", StaticFiles(directory="frontend_dist", html=True), name="frontend")
