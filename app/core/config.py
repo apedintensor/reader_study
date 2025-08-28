@@ -89,10 +89,39 @@ class Settings(BaseSettings):
             try:
                 parsed = json.loads(raw)
                 if isinstance(parsed, list):
-                    return [str(o).strip() for o in parsed if str(o).strip()]
+                    origins = [str(o).strip() for o in parsed if str(o).strip()]
+                    return self._augment_dev_origins(origins)
             except Exception:
                 pass
-        return [o.strip() for o in raw.split(',') if o.strip()]
+        origins = [o.strip() for o in raw.split(',') if o.strip()]
+        return self._augment_dev_origins(origins)
+
+    def _augment_dev_origins(self, origins: list[str]) -> list[str]:
+        """Ensure local dev Vue origins are present when running locally.
+
+        Logic:
+        - If wildcard is used elsewhere we don't modify (handled earlier).
+        - If DATABASE_URL not set (likely local sqlite) OR env APP_ENV != 'production',
+          append common local dev origins if not already included.
+        - Controlled by DEV_ADD_LOCAL_CORS (default true).
+        """
+        if not origins or "*" in origins:
+            return origins
+        if os.getenv("DEV_ADD_LOCAL_CORS", "true").lower() != "true":
+            return origins
+        app_env = os.getenv("APP_ENV", "development").lower()
+        is_local_db = self.SQLALCHEMY_ASYNC_DATABASE_URI.startswith("sqlite")
+        if app_env != "production" or is_local_db:
+            dev_hosts = [
+                "http://localhost:5173",
+                "http://127.0.0.1:5173",
+                "http://localhost:3000",
+                "http://127.0.0.1:3000",
+            ]
+            for h in dev_hosts:
+                if h not in origins:
+                    origins.append(h)
+        return origins
     
     # User settings
     SUPERUSER_EMAIL: str = os.getenv("SUPERUSER_EMAIL", "admin@example.com")
