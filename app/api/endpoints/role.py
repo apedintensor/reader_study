@@ -19,6 +19,16 @@ def read_roles(
     roles = crud.role.get_multi(db, skip=skip, limit=limit)
     return roles
 
+# Support path without trailing slash (/api/roles) since a global catchall route
+# prevents Starlette's automatic slash redirect from firing.
+@router.get("", response_model=List[app_schemas.RoleRead], include_in_schema=False)
+def read_roles_no_slash(
+    db: Session = Depends(deps.get_db),
+    skip: int = 0,
+    limit: int = 100
+):
+    return crud.role.get_multi(db, skip=skip, limit=limit)
+
 @router.post("/", response_model=app_schemas.RoleRead, status_code=201)
 def create_role(
     *, # Enforces keyword-only arguments

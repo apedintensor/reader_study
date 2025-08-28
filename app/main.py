@@ -1,5 +1,6 @@
 # backend/app/main.py
 import asyncio
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -74,8 +75,21 @@ app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 # Mount the API router under /api
 app.include_router(api_router, prefix="/api")
 
-# Serve the frontend static files from the root
-app.mount("/", StaticFiles(directory="frontend_dist", html=True), name="frontend")
+# Serve frontend assets under /frontend to avoid shadowing /api routes
+app.mount("/frontend", StaticFiles(directory="frontend_dist", html=True), name="frontend")
+
+# Optional SPA index fallback (serve index.html for root)
+@app.get("/{full_path:path}")
+async def spa_fallback(full_path: str):
+    # Allow API routes to 404 normally
+    if full_path.startswith("api/"):
+        raise HTTPException(status_code=404, detail="Not Found")
+    index_path = "frontend_dist/index.html"
+    if full_path == "" and os.path.exists(index_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(index_path, media_type="text/html")
+    # If asset exists under frontend_dist, let static handler (mounted) serve it via /frontend
+    raise HTTPException(status_code=404, detail="Not Found")
 
 # Add startup event to create tables and initialize data
 @app.on_event("startup")
