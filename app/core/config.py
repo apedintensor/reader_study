@@ -1,77 +1,108 @@
-# app/core/config.py
+"""Application configuration via Pydantic Settings (v2 friendly).
+
+Refactored to avoid unannotated class attributes that Pydantic interpreted as
+fields (causing PydanticUserError in production).
+"""
 import os
-from typing import Any, Dict, Optional
-from pydantic import BaseModel
+import json
+from typing import List, Optional
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 
-# Load environment variables from .env file if it exists
 load_dotenv()
-
-# Get the general database URL from the environment, if available
-DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 class Settings(BaseSettings):
-    # Basic settings
+    # Basic
     PROJECT_NAME: str = "Reader Study Web API"
     API_V1_STR: str = "/api/v1"
-    
-    # Security settings
+
+    # Security
     SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
     JWT_ALGORITHM: str = "HS256"
-    JWT_LIFETIME_SECONDS: int = 3600 * 24 * 7  # 1 week
-    
-    # Database settings
-    # Determine database URIs based on whether DATABASE_URL is set (for Render/PostgreSQL)
-    if DATABASE_URL:
-        # Ensure it's a PostgreSQL URL for Render
-        if DATABASE_URL.startswith("postgres://"):
-            ASYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-            SYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1) # Or psycopg
-        elif DATABASE_URL.startswith("postgresql://"): # Already in a compatible format for replacement
-            ASYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-            SYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1) # Or psycopg
-        else: # Fallback or raise error if DATABASE_URL is not a postgres URL
-            # For simplicity, falling back to SQLite if DATABASE_URL is set but not recognized as postgres
-            # In a real scenario, you might want to raise an error here.
-            print(f"Warning: DATABASE_URL is set but not recognized as a PostgreSQL URL: {DATABASE_URL}. Falling back to SQLite.")
-            ASYNC_DB_URL = "sqlite+aiosqlite:///./test.db"
-            SYNC_DB_URL = "sqlite:///./test.db"
-        
-        SQLALCHEMY_ASYNC_DATABASE_URI: str = ASYNC_DB_URL
-        SQLALCHEMY_SYNC_DATABASE_URI: str = SYNC_DB_URL
-    else:
-        # Fallback to SQLite for local development if DATABASE_URL is not set
-        SQLALCHEMY_ASYNC_DATABASE_URI: str = os.getenv(
-            "ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db"
-        )
-        SQLALCHEMY_SYNC_DATABASE_URI: str = os.getenv(
-            "SYNC_DATABASE_URI", "sqlite:///./test.db"
-        )
-    
-    # CORS settings
-    CORS_ORIGINS: list = ["*"]  # In production, specify exact domain
-    
-    # User settings
+    JWT_LIFETIME_SECONDS: int = 3600 * 24 * 7
+
+    # Source DB URL (raw) – optional so we can derive URIs post-init
+    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+
+    # Computed/derived SQLAlchemy URIs (populated in model_post_init if None)
+    SQLALCHEMY_ASYNC_DATABASE_URI: Optional[str] = None
+    SQLALCHEMY_SYNC_DATABASE_URI: Optional[str] = None
+
+    # CORS (store raw string to avoid Pydantic attempting JSON list parse first)
+    CORS_ORIGINS_RAW: Optional[str] = os.getenv("CORS_ORIGINS", "*")
+
+    @property
+    def cors_origins(self) -> List[str]:
+        """Return parsed CORS origins as list.
+
+        Supports:
+        - '*' or empty -> ['*']
+        - JSON array string
+        - Comma-separated list
+        - Single origin
+        """
+        raw = (self.CORS_ORIGINS_RAW or "").strip()
+        if not raw or raw == "*":
+            return ["*"]
+        if raw.startswith("[") and raw.endswith("]"):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list) and all(isinstance(i, str) for i in parsed):
+                    return parsed or ["*"]
+            except Exception:
+                pass
+        if "," in raw:
+            parts = [p.strip() for p in raw.split(",") if p.strip()]
+            return parts or ["*"]
+        return [raw]
+
+    # Superuser bootstrap
     SUPERUSER_EMAIL: str = os.getenv("SUPERUSER_EMAIL", "admin@example.com")
     SUPERUSER_PASSWORD: str = os.getenv("SUPERUSER_PASSWORD", "adminpassword")
-    
-    # Media / CDN settings
-    # Base URL used to prefix relative image paths stored in the database, e.g.
-    # IMAGE_BASE_URL=https://cdn.example.com
-    # A stored image_url like 'images/foo.jpg' becomes
-    # https://cdn.example.com/images/foo.jpg when exposed via Image.full_url
+
+    # Media
     IMAGE_BASE_URL: str = os.getenv("IMAGE_BASE_URL", "")
-    # Game / block settings
-    GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "2"))  # override in tests e.g. 2
-    
-    # Additional settings can be added as needed
-    
-    class Config:
-        case_sensitive = True
-        env_file = ".env"
+
+    # Game config
+    GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "2"))
+
+    model_config = {
+        "case_sensitive": True,
+        "env_file": ".env",
+    }
+
+    def model_post_init(self, __context):  # pydantic v2 hook
+        # If DATABASE_URL provided, derive sync/async variants if not already set
+        if self.DATABASE_URL:
+            url = self.DATABASE_URL
+            if url.startswith("postgres://"):
+                async_url = url.replace("postgres://", "postgresql+asyncpg://", 1)
+                sync_url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+            elif url.startswith("postgresql://"):
+                async_url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+                sync_url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+            else:
+                # Fallback to SQLite if unexpected scheme
+                print(
+                    f"Warning: DATABASE_URL not recognized as PostgreSQL ({url}); falling back to SQLite."
+                )
+                async_url = "sqlite+aiosqlite:///./test.db"
+                sync_url = "sqlite:///./test.db"
+            if not self.SQLALCHEMY_ASYNC_DATABASE_URI:
+                self.SQLALCHEMY_ASYNC_DATABASE_URI = async_url
+            if not self.SQLALCHEMY_SYNC_DATABASE_URI:
+                self.SQLALCHEMY_SYNC_DATABASE_URI = sync_url
+
+        # Final fallback if still unset
+        if not self.SQLALCHEMY_ASYNC_DATABASE_URI:
+            self.SQLALCHEMY_ASYNC_DATABASE_URI = os.getenv(
+                "ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db"
+            )
+        if not self.SQLALCHEMY_SYNC_DATABASE_URI:
+            self.SQLALCHEMY_SYNC_DATABASE_URI = os.getenv(
+                "SYNC_DATABASE_URI", "sqlite:///./test.db"
+            )
 
 
-# Create a global settings object
 settings = Settings()
