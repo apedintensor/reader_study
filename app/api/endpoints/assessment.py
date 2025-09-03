@@ -1,117 +1,83 @@
-# backend/app/api/endpoints/assessment.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from sqlalchemy import select
-
-from app import crud
-from app.schemas import schemas as app_schemas
 from app.api import deps
-from app.models.models import Assessment
+from app.schemas.schemas import AssessmentCreate, AssessmentRead, AssessmentSubmitResponse
+from app.services import game_service
+from app.services.assessment_service import create_or_replace_assessment
+from app.models.models import Assessment, ReaderCaseAssignment
+from sqlalchemy import select
 
 router = APIRouter()
 
-@router.get("/", response_model=List[app_schemas.AssessmentRead])
-def read_assessments(
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100
-):
-    """Retrieve assessments."""
-    assessments = crud.assessment.get_multi(db=db, skip=skip, limit=limit)
-    return assessments
 
-@router.get("/user/{user_id}", response_model=List[app_schemas.AssessmentRead])
-def read_user_assessments(
-    user_id: int,
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100
-):
-    """Retrieve assessments for a specific user."""
-    assessments = crud.assessment.get_multi_by_user(db=db, user_id=user_id, skip=skip, limit=limit)
-    return assessments
-
-@router.get("/case/{case_id}", response_model=List[app_schemas.AssessmentRead])
-def read_case_assessments(
-    case_id: int,
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100
-):
-    """Retrieve assessments for a specific case."""
-    assessments = crud.assessment.get_multi_by_case(db=db, case_id=case_id, skip=skip, limit=limit)
-    return assessments
-
-@router.get("/{user_id}/{case_id}/{is_post_ai}", response_model=app_schemas.AssessmentRead)
-def read_assessment(
-    user_id: int,
-    case_id: int,
-    is_post_ai: bool,
-    db: Session = Depends(deps.get_db)
-):
-    """Retrieve a specific assessment."""
-    assessment = crud.assessment.get(db=db, user_id=user_id, case_id=case_id, is_post_ai=is_post_ai)
-    if assessment is None:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    return assessment
-
-@router.post("/", response_model=app_schemas.AssessmentRead, status_code=201)
-async def create_assessment(
-    *,
-    db: Session = Depends(deps.get_db),
-    assessment_in: app_schemas.AssessmentCreate
-):
-    """Create new assessment."""
-    # Check if assessment already exists
-    existing_assessment = crud.assessment.get(
-        db=db, 
-        user_id=assessment_in.user_id, 
-        case_id=assessment_in.case_id, 
-        is_post_ai=assessment_in.is_post_ai
-    )
-    if existing_assessment:
-        raise HTTPException(
-            status_code=400,
-            detail="An assessment with these keys already exists"
+@router.post("/", response_model=AssessmentSubmitResponse)
+def submit_assessment(payload: AssessmentCreate, db: Session = Depends(deps.get_db)):
+    try:
+        assessment = create_or_replace_assessment(db, payload)
+        # Determine block status
+        assignment = db.get(ReaderCaseAssignment, assessment.assignment_id)
+        block_index = assignment.block_index if assignment else -1
+        # Fetch all assignments for block
+        if assignment:
+            from sqlalchemy import select
+            block_assignments = db.execute(
+                select(ReaderCaseAssignment).where(
+                    ReaderCaseAssignment.user_id == assignment.user_id,
+                    ReaderCaseAssignment.block_index == block_index
+                )
+            ).scalars().all()
+            remaining = sum(1 for a in block_assignments if a.completed_post_at is None)
+            block_complete = remaining == 0
+        else:
+            remaining = 0
+            block_complete = False
+        # Eager finalize if block just completed (idempotent)
+        if block_complete and assignment:
+            game_service.finalize_block_if_complete(db, assignment.user_id, block_index)
+        # Build clean payload (avoid raw __dict__ which includes SA state and may omit relationships before refresh)
+        resp = AssessmentSubmitResponse(
+            id=assessment.id,
+            assignment_id=assessment.assignment_id,
+            phase=assessment.phase,
+            diagnostic_confidence=assessment.diagnostic_confidence,
+            management_confidence=assessment.management_confidence,
+            biopsy_recommended=assessment.biopsy_recommended,
+            referral_recommended=assessment.referral_recommended,
+            changed_primary_diagnosis=assessment.changed_primary_diagnosis,
+            changed_management_plan=assessment.changed_management_plan,
+            ai_usefulness=assessment.ai_usefulness,
+            top1_correct=assessment.top1_correct,
+            top3_correct=assessment.top3_correct,
+            rank_of_truth=assessment.rank_of_truth,
+            created_at=assessment.created_at,
+            diagnosis_entries=[{
+                'id': de.id,
+                'rank': de.rank,
+                'raw_text': de.raw_text,
+                'diagnosis_term_id': de.diagnosis_term_id,
+            } for de in assessment.diagnosis_entries],
+            block_index=block_index,
+            block_complete=block_complete,
+            report_available=block_complete,
+            remaining_in_block=remaining,
         )
-    
-    # For post-AI assessments, ensure pre-AI assessment exists
-    if assessment_in.is_post_ai:
-        # Query for pre-AI assessment
-        stmt = select(Assessment).where(
-            Assessment.user_id == assessment_in.user_id,
-            Assessment.case_id == assessment_in.case_id,
-            Assessment.is_post_ai == False
-        )
-        pre_assessment = db.execute(stmt).scalar_one_or_none()
+        return resp
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-        if not pre_assessment:
-            raise HTTPException(
-                status_code=400,
-                detail="Cannot create post-AI assessment without corresponding pre-AI assessment"
-            )
-    
-    assessment = crud.assessment.create(db=db, assessment=assessment_in)
-    return assessment
 
-@router.put("/{user_id}/{case_id}/{is_post_ai}", response_model=app_schemas.AssessmentRead)
-def update_assessment(
-    user_id: int,
-    case_id: int,
-    is_post_ai: bool,
-    *,
-    db: Session = Depends(deps.get_db),
-    assessment_in: app_schemas.AssessmentUpdate
-):
-    """Update an assessment."""
-    assessment = crud.assessment.update(
-        db=db, 
-        user_id=user_id,
-        case_id=case_id,
-        is_post_ai=is_post_ai,
-        assessment=assessment_in
+@router.get("/assignment/{assignment_id}", response_model=List[AssessmentRead])
+def get_assessments_for_assignment(assignment_id: int, db: Session = Depends(deps.get_db)):
+    stmt = select(Assessment).where(Assessment.assignment_id == assignment_id).order_by(Assessment.phase.asc())
+    return db.execute(stmt).scalars().all()
+
+
+@router.get("/user/{user_id}/block/{block_index}", response_model=List[AssessmentRead])
+def get_block_assessments(user_id: int, block_index: int, db: Session = Depends(deps.get_db)):
+    stmt = select(Assessment).join(ReaderCaseAssignment).where(
+        ReaderCaseAssignment.user_id == user_id,
+        ReaderCaseAssignment.block_index == block_index
     )
-    if assessment is None:
-        raise HTTPException(status_code=404, detail="Assessment not found")
-    return assessment
+    return db.execute(stmt).scalars().all()
+

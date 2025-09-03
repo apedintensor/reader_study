@@ -49,16 +49,11 @@ async def override_get_async_db() -> AsyncGenerator[AsyncSession, None]:
 test_user = {
     "email": "test@example.com",
     "password": "password123",
-    "is_active": True,
-    "role_id": 1,
 }
 
 test_superuser = {
     "email": "admin@example.com",
     "password": "adminpass123",
-    "is_active": True,
-    "is_superuser": True,
-    "role_id": 1,
 }
 
 
@@ -78,12 +73,9 @@ async def init_db():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     
-    # Create initial data (roles) that the application needs
+    # Removed seeding of extra roles (Admin/Doctor/Researcher) to mirror production role set.
+    # If specific tests need roles, they should create them explicitly within the test.
     async with TestAsyncSessionLocal() as session:
-        admin_role = Role(name="Admin")
-        doctor_role = Role(name="Doctor")
-        researcher_role = Role(name="Researcher")
-        session.add_all([admin_role, doctor_role, researcher_role])
         await session.commit()
     
     yield
@@ -101,7 +93,7 @@ async def init_db():
 
 
 @pytest_asyncio.fixture(scope="session")
-async def app(init_db) -> FastAPI:
+async def app(init_db):
     # Override the get_async_db dependency to use test database
     from app.db.session import get_async_db
     fastapi_app.dependency_overrides[get_async_db] = override_get_async_db
@@ -137,12 +129,14 @@ async def registered_user(client: AsyncClient) -> dict:
     """
     # Try to register the user
     response = await client.post(
-        "/auth/register/register", 
+        "/auth/register", 
         json=test_user,
     )
     
     # If the user already exists, that's fine too
-    if response.status_code == 400 and "REGISTER_USER_ALREADY_EXISTS" in response.text:
+    if response.status_code in (200, 201):
+        pass
+    elif response.status_code == 400 and "REGISTER_USER_ALREADY_EXISTS" in response.text:
         # Verify the user by logging in
         login_data = {
             "username": test_user["email"],
@@ -152,7 +146,7 @@ async def registered_user(client: AsyncClient) -> dict:
         assert login_response.status_code == 200, f"Failed to login with existing user: {login_response.text}"
     else:
         # New user registration should succeed
-        assert response.status_code == 201, f"Failed to register user: {response.text}"
+        assert response.status_code == 201, f"Failed to register user: {response.status_code} {response.text}"
     
     return test_user
 

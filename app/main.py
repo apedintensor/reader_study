@@ -1,12 +1,10 @@
 # backend/app/main.py
 import asyncio
-import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from fastapi.staticfiles import StaticFiles  # Add this import
 
 from app.api.routes import api_router
 from app.auth.routes import auth_router
@@ -26,10 +24,10 @@ from app.core.exceptions import (
 # Create FastAPI app
 app = FastAPI(title=settings.PROJECT_NAME)
 
-# Configure CORS using settings (can be overridden via CORS_ORIGINS env var)
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,25 +69,9 @@ async def admin():
     return RedirectResponse(url="/docs")
 
 # Include the authentication router
-app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
-# Mount the API router under /api
-app.include_router(api_router, prefix="/api")
-
-# Serve frontend assets under /frontend to avoid shadowing /api routes
-app.mount("/frontend", StaticFiles(directory="frontend_dist", html=True), name="frontend")
-
-# Optional SPA index fallback (serve index.html for root)
-@app.get("/{full_path:path}")
-async def spa_fallback(full_path: str):
-    # Allow API routes to 404 normally
-    if full_path.startswith("api/"):
-        raise HTTPException(status_code=404, detail="Not Found")
-    index_path = "frontend_dist/index.html"
-    if full_path == "" and os.path.exists(index_path):
-        from fastapi.responses import FileResponse
-        return FileResponse(index_path, media_type="text/html")
-    # If asset exists under frontend_dist, let static handler (mounted) serve it via /frontend
-    raise HTTPException(status_code=404, detail="Not Found")
+app.include_router(auth_router, prefix="/auth", tags=["auth"])
+# Include the main API router
+app.include_router(api_router)
 
 # Add startup event to create tables and initialize data
 @app.on_event("startup")

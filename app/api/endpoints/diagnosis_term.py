@@ -1,5 +1,5 @@
 # backend/app/api/endpoints/diagnosis_term.py
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -8,6 +8,17 @@ from app.schemas import schemas as app_schemas
 from app.api import deps
 
 router = APIRouter()
+
+@router.get("/suggest", response_model=List[app_schemas.DiagnosisSuggestion])
+def suggest_terms(
+    q: str = Query(min_length=2, description="User typed fragment"),
+    limit: int = Query(10, ge=1, le=25),
+    db: Session = Depends(deps.get_db)
+):
+    """Return ranked diagnosis term suggestions (name + synonyms).
+    Placed before /{term_id} route to avoid path param capture precedence issues.
+    """
+    return crud.crud_diagnosis_term.synonyms["suggest"](db, q, limit=limit)
 
 @router.get("/", response_model=List[app_schemas.DiagnosisTermRead])
 def read_diagnosis_terms(
@@ -45,3 +56,23 @@ def read_diagnosis_term(
     return db_term
 
 # Add PUT, DELETE if needed
+
+
+@router.post("/synonyms", response_model=app_schemas.DiagnosisSynonymRead, status_code=201)
+def create_synonym(
+    *,
+    db: Session = Depends(deps.get_db),
+    synonym_in: app_schemas.DiagnosisSynonymCreate
+):
+    # uniqueness enforced at DB level (unique synonym)
+    return crud.crud_diagnosis_term.synonyms["create"](db, synonym_in)
+
+
+@router.get("/synonyms", response_model=List[app_schemas.DiagnosisSynonymRead])
+def list_synonyms(
+    term_id: int | None = None,
+    db: Session = Depends(deps.get_db)
+):
+    return crud.crud_diagnosis_term.synonyms["list"](db, term_id=term_id)
+
+

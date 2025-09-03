@@ -17,8 +17,8 @@ async def get_async_db_session():
         yield session
 
 # Re-export auth dependencies
-def get_current_user():
-    return current_active_user
+def get_current_user(user: User = Depends(current_active_user)) -> User:
+    return user
 
-def get_current_superuser():
-    return current_superuser
+def get_current_superuser(user: User = Depends(current_superuser)) -> User:
+    return user

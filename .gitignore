@@ -132,13 +132,3 @@ dmypy.json
 *.swp
 *.swo
 *~
-
-# Project specific
-test.db
-*.db
-frontend_dist/
-*.csv
-
-# Ensure no compiled bytecode accidentally committed (already pattern but explicit file examples)
-**/__pycache__/
-*.cpython-*.pyc

@@ -1,27 +1,20 @@
-# Import all schemas
+"""Lightweight re-exports of actively used schema classes.
+
+Legacy schemas (case metadata, management strategies/plans, legacy diagnosis) removed.
+Import from app.schemas.schemas directly for full list.
+"""
+
 from .schemas import (
-    RoleBase, RoleCreate, RoleRead,
-    DiagnosisTermBase, DiagnosisTermCreate, DiagnosisTermRead,
-    CaseBase, CaseCreate, CaseRead,
-    CaseMetaDataBase, CaseMetaDataCreate, CaseMetaDataRead,
-    ImageBase, ImageCreate, ImageRead,
-    AIOutputBase, AIOutputCreate, AIOutputRead,
-    AssessmentBase, AssessmentCreate, AssessmentRead,
-    DiagnosisBase, DiagnosisCreate, DiagnosisRead,
-    ManagementStrategyBase, ManagementStrategyCreate, ManagementStrategyRead,
-    ManagementPlanBase, ManagementPlanCreate, ManagementPlanRead
+    RoleBase, RoleRead,
+    DiagnosisTermBase, DiagnosisTermRead,
+    DiagnosisSynonymCreate, DiagnosisSynonymRead, DiagnosisSuggestion,
+    CaseCreate, CaseRead,
+    ImageCreate, ImageRead,
+    AIOutputCreate, AIOutputRead,
+    AssessmentCreate, AssessmentRead,
+    DiagnosisEntryCreate, DiagnosisEntryRead,
+    BlockFeedbackRead,
+    StartGameResponse, ActiveGameResponse, ReportCardResponse,
 )
 
-# Re-export all schemas to make them available at the package level
-__all__ = [
-    'RoleBase', 'RoleCreate', 'RoleRead',
-    'DiagnosisTermBase', 'DiagnosisTermCreate', 'DiagnosisTermRead',
-    'CaseBase', 'CaseCreate', 'CaseRead',
-    'CaseMetaDataBase', 'CaseMetaDataCreate', 'CaseMetaDataRead',
-    'ImageBase', 'ImageCreate', 'ImageRead',
-    'AIOutputBase', 'AIOutputCreate', 'AIOutputRead',
-    'AssessmentBase', 'AssessmentCreate', 'AssessmentRead',
-    'DiagnosisBase', 'DiagnosisCreate', 'DiagnosisRead',
-    'ManagementStrategyBase', 'ManagementStrategyCreate', 'ManagementStrategyRead',
-    'ManagementPlanBase', 'ManagementPlanCreate', 'ManagementPlanRead'
-]
+__all__ = [name for name in globals().keys() if not name.startswith('_')]

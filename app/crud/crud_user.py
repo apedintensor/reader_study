@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from app.auth.models import User
-from app.schemas import schemas
+from app.auth.schemas import UserCreate, UserUpdate
 from typing import Any, Dict, Optional, Union
 
 # Use passlib for proper password hashing
@@ -23,7 +23,7 @@ def get_user_by_email(db: Session, email: str):
 def get_users(db: Session, skip: int = 0, limit: int = 100):
     return db.query(User).offset(skip).limit(limit).all()
 
-def create_user(db: Session, user: schemas.UserCreate):
+def create_user(db: Session, user: UserCreate):
     hashed_password = get_password_hash(user.password)
     db_user = User(
         email=user.email,
@@ -42,7 +42,7 @@ def create_user(db: Session, user: schemas.UserCreate):
 def update_user(
     db: Session,
     db_obj: User,
-    obj_in: Union[schemas.UserUpdate, Dict[str, Any]]
+    obj_in: Union[UserUpdate, Dict[str, Any]]
 ):
     if isinstance(obj_in, dict):
         update_data = obj_in

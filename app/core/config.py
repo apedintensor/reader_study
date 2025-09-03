@@ -12,130 +12,59 @@ load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
-def _get_database_urls() -> tuple[str, str]:
-    """Get database URLs for async and sync connections."""
-    if DATABASE_URL:
-        # Ensure it's a PostgreSQL URL for Render
-        if DATABASE_URL.startswith("postgres://"):
-            async_url = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-            sync_url = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
-        elif DATABASE_URL.startswith("postgresql://"):
-            async_url = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-            sync_url = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
-        else:
-            # Fallback to SQLite if DATABASE_URL is set but not recognized as postgres
-            print(f"Warning: DATABASE_URL is set but not recognized as a PostgreSQL URL: {DATABASE_URL}. Falling back to SQLite.")
-            async_url = "sqlite+aiosqlite:///./test.db"
-            sync_url = "sqlite:///./test.db"
-        return async_url, sync_url
-    else:
-        # Fallback to SQLite for local development if DATABASE_URL is not set
-        async_url = os.getenv("ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db")
-        sync_url = os.getenv("SYNC_DATABASE_URI", "sqlite:///./test.db")
-        return async_url, sync_url
-
-
 class Settings(BaseSettings):
     # Basic settings
     PROJECT_NAME: str = "Reader Study Web API"
+    API_V1_STR: str = "/api/v1"
     
     # Security settings
     SECRET_KEY: str = os.getenv("SECRET_KEY", "supersecretkey")
     JWT_ALGORITHM: str = "HS256"
     JWT_LIFETIME_SECONDS: int = 3600 * 24 * 7  # 1 week
     
-    # Database settings - properly typed
-    SQLALCHEMY_ASYNC_DATABASE_URI: str = ""
-    SQLALCHEMY_SYNC_DATABASE_URI: str = ""
+    # Database settings
+    # Determine database URIs based on whether DATABASE_URL is set (for Render/PostgreSQL)
+    if DATABASE_URL:
+        # Ensure it's a PostgreSQL URL for Render
+        if DATABASE_URL.startswith("postgres://"):
+            ASYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+            SYNC_DB_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1) # Or psycopg
+        elif DATABASE_URL.startswith("postgresql://"): # Already in a compatible format for replacement
+            ASYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            SYNC_DB_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1) # Or psycopg
+        else: # Fallback or raise error if DATABASE_URL is not a postgres URL
+            # For simplicity, falling back to SQLite if DATABASE_URL is set but not recognized as postgres
+            # In a real scenario, you might want to raise an error here.
+            print(f"Warning: DATABASE_URL is set but not recognized as a PostgreSQL URL: {DATABASE_URL}. Falling back to SQLite.")
+            ASYNC_DB_URL = "sqlite+aiosqlite:///./test.db"
+            SYNC_DB_URL = "sqlite:///./test.db"
+        
+        SQLALCHEMY_ASYNC_DATABASE_URI: str = ASYNC_DB_URL
+        SQLALCHEMY_SYNC_DATABASE_URI: str = SYNC_DB_URL
+    else:
+        # Fallback to SQLite for local development if DATABASE_URL is not set
+        SQLALCHEMY_ASYNC_DATABASE_URI: str = os.getenv(
+            "ASYNC_DATABASE_URI", "sqlite+aiosqlite:///./test.db"
+        )
+        SQLALCHEMY_SYNC_DATABASE_URI: str = os.getenv(
+            "SYNC_DATABASE_URI", "sqlite:///./test.db"
+        )
     
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # Set database URLs after initialization
-        async_url, sync_url = _get_database_urls()
-        self.SQLALCHEMY_ASYNC_DATABASE_URI = async_url
-        self.SQLALCHEMY_SYNC_DATABASE_URI = sync_url
-
-
-        # Map Fly.io / AWS style env vars if S3_* not explicitly set
-        if not self.S3_ACCESS_KEY and os.getenv("AWS_ACCESS_KEY_ID"):
-            self.S3_ACCESS_KEY = os.getenv("AWS_ACCESS_KEY_ID")
-        if not self.S3_SECRET_KEY and os.getenv("AWS_SECRET_ACCESS_KEY"):
-            self.S3_SECRET_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-        if not self.S3_ENDPOINT and os.getenv("AWS_ENDPOINT_URL_S3"):
-            # Fly Tigris provides an S3-compatible endpoint in AWS_ENDPOINT_URL_S3
-            self.S3_ENDPOINT = os.getenv("AWS_ENDPOINT_URL_S3")
-        if not self.S3_REGION and os.getenv("AWS_REGION"):
-            self.S3_REGION = os.getenv("AWS_REGION")
-        if not self.S3_BUCKET and os.getenv("BUCKET_NAME"):
-            self.S3_BUCKET = os.getenv("BUCKET_NAME")
-        if not self.STORAGE_PROVIDER and (self.S3_ENDPOINT or os.getenv("AWS_ENDPOINT_URL_S3")):
-            self.STORAGE_PROVIDER = "tigris"  # sensible default for Fly object storage
-
-    @property
-    def storage_enabled(self) -> bool:
-        return all([self.S3_BUCKET, self.S3_ACCESS_KEY, self.S3_SECRET_KEY, self.S3_ENDPOINT])
-    
-    # Raw CORS origins string from env (optional). We parse manually to avoid Pydantic attempting JSON first.
-    CORS_ORIGINS_RAW: str | None = os.getenv("CORS_ORIGINS")
-
-    @property
-    def cors_origins(self) -> list[str]:
-        raw = self.CORS_ORIGINS_RAW
-        if not raw:
-            return ["*"]
-        raw = raw.strip()
-        if raw.startswith("["):
-            import json
-            try:
-                parsed = json.loads(raw)
-                if isinstance(parsed, list):
-                    origins = [str(o).strip() for o in parsed if str(o).strip()]
-                    return self._augment_dev_origins(origins)
-            except Exception:
-                pass
-        origins = [o.strip() for o in raw.split(',') if o.strip()]
-        return self._augment_dev_origins(origins)
-
-    def _augment_dev_origins(self, origins: list[str]) -> list[str]:
-        """Ensure local dev Vue origins are present when running locally.
-
-        Logic:
-        - If wildcard is used elsewhere we don't modify (handled earlier).
-        - If DATABASE_URL not set (likely local sqlite) OR env APP_ENV != 'production',
-          append common local dev origins if not already included.
-        - Controlled by DEV_ADD_LOCAL_CORS (default true).
-        """
-        if not origins or "*" in origins:
-            return origins
-        if os.getenv("DEV_ADD_LOCAL_CORS", "true").lower() != "true":
-            return origins
-        app_env = os.getenv("APP_ENV", "development").lower()
-        is_local_db = self.SQLALCHEMY_ASYNC_DATABASE_URI.startswith("sqlite")
-        if app_env != "production" or is_local_db:
-            dev_hosts = [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000",
-                "http://127.0.0.1:3000",
-            ]
-            for h in dev_hosts:
-                if h not in origins:
-                    origins.append(h)
-        return origins
+    # CORS settings
+    CORS_ORIGINS: list = ["*"]  # In production, specify exact domain
     
     # User settings
     SUPERUSER_EMAIL: str = os.getenv("SUPERUSER_EMAIL", "admin@example.com")
     SUPERUSER_PASSWORD: str = os.getenv("SUPERUSER_PASSWORD", "adminpassword")
-
-    # Object storage (S3 / Tigris) settings (optional)
-    # Set these as environment variables or Fly secrets when enabling external file storage
-    STORAGE_PROVIDER: str | None = os.getenv("STORAGE_PROVIDER")  # e.g. "tigris" or "s3"
-    S3_ENDPOINT: str | None = os.getenv("S3_ENDPOINT")  # e.g. https://fly.storage.tigris.dev
-    S3_REGION: str | None = os.getenv("S3_REGION")      # e.g. "auto" or specific region
-    S3_BUCKET: str | None = os.getenv("S3_BUCKET")
-    S3_ACCESS_KEY: str | None = os.getenv("S3_ACCESS_KEY")
-    S3_SECRET_KEY: str | None = os.getenv("S3_SECRET_KEY")
-    S3_USE_PATH_STYLE: bool = os.getenv("S3_USE_PATH_STYLE", "true").lower() == "true"  # Tigris prefers path-style
+    
+    # Media / CDN settings
+    # Base URL used to prefix relative image paths stored in the database, e.g.
+    # IMAGE_BASE_URL=https://cdn.example.com
+    # A stored image_url like 'images/foo.jpg' becomes
+    # https://cdn.example.com/images/foo.jpg when exposed via Image.full_url
+    IMAGE_BASE_URL: str = os.getenv("IMAGE_BASE_URL", "")
+    # Game / block settings
+    GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "2"))  # override in tests e.g. 2
     
     # Additional settings can be added as needed
     

@@ -7,12 +7,13 @@ from typing import List, Any
 from app import crud, models # models needed for update check
 # Import the schemas module directly and alias it
 from app.schemas import schemas as app_schemas
+from app.auth.schemas import UserRead, UserCreate, UserUpdate
 from app.api import deps
 
 router = APIRouter()
 
 # Use the alias for the response_model
-@router.get("/", response_model=List[app_schemas.UserRead])
+@router.get("/", response_model=List[UserRead])
 def read_users(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
@@ -23,11 +24,11 @@ def read_users(
     return users
 
 # Use the alias for the response_model and input schema
-@router.post("/", response_model=app_schemas.UserRead, status_code=201)
+@router.post("/", response_model=UserRead, status_code=201)
 def create_user(
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    user_in: app_schemas.UserCreate
+    user_in: UserCreate
 ):
     """Create new user."""
     # Check if user already exists by email
@@ -43,7 +44,7 @@ def create_user(
     return user
 
 # Use the alias for the response_model
-@router.get("/{user_id}", response_model=app_schemas.UserRead)
+@router.get("/{user_id}", response_model=UserRead)
 def read_user(
     user_id: int,
     db: Session = Depends(deps.get_db),
@@ -55,12 +56,12 @@ def read_user(
     return db_user
 
 # Use the alias for the response_model and input schema
-@router.put("/{user_id}", response_model=app_schemas.UserRead)
+@router.put("/{user_id}", response_model=UserRead)
 def update_user(
     user_id: int,
     *, # Enforces keyword-only arguments
     db: Session = Depends(deps.get_db),
-    user_in: app_schemas.UserUpdate
+    user_in: UserUpdate
 ):
     """Update a user."""
     db_user = crud.user.get(db=db, user_id=user_id)
@@ -81,7 +82,7 @@ def update_user(
     return user
 
 # Use the alias for the response_model
-@router.delete("/{user_id}", response_model=app_schemas.UserRead)
+@router.delete("/{user_id}", response_model=UserRead)
 def delete_user(
     user_id: int,
     db: Session = Depends(deps.get_db),

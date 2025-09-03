@@ -18,6 +18,7 @@ auth_router.include_router(
 
 auth_router.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
+    # No extra prefix so final path is /auth/register (avoids double /register/register)
     tags=["auth"],
 )
 

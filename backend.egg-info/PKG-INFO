@@ -79,6 +79,61 @@ backend/
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
+## Deploying to Fly.io
+
+### Prerequisites
+- Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
+- `fly auth login`
+
+### One-time App + Postgres + Object Storage (Tigris)
+```bash
+fly launch --no-deploy --name reader-study
+fly postgres create --name reader-study-pg --initial-cluster-size 1 --vm-size shared-cpu-1x --volume-size 10
+fly postgres attach reader-study-pg --app reader-study
+```
+
+### Set Secrets (DB added automatically when attached)
+```bash
+fly secrets set SECRET_KEY="<random>" SUPERUSER_EMAIL="admin@example.com" SUPERUSER_PASSWORD="<strong>"
+# If using Fly object storage / Tigris (values auto-provisioned or from dashboard):
+fly secrets set AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_ENDPOINT_URL_S3=... AWS_REGION=... BUCKET_NAME=...
+```
+
+### Deploy
+```bash
+fly deploy
+```
+
+### Run Utility Scripts (examples)
+```bash
+fly ssh console -C "python create_mock_data.py"
+fly ssh console -C "python export_data.py"
+```
+
+### Environment Variable Mapping
+The app maps these automatically:
+| Fly/Tigris Secret | App setting (Settings) |
+|-------------------|-------------------------|
+| AWS_ACCESS_KEY_ID | S3_ACCESS_KEY          |
+| AWS_SECRET_ACCESS_KEY | S3_SECRET_KEY      |
+| AWS_ENDPOINT_URL_S3 | S3_ENDPOINT          |
+| AWS_REGION | S3_REGION                     |
+| BUCKET_NAME | S3_BUCKET                    |
+
+If `S3_*` vars not explicitly set, they are populated from the above. `S3_USE_PATH_STYLE` defaults to true for Tigris.
+
+### Health / Debug
+```bash
+fly logs
+fly status
+fly ssh console
+```
+
+### Rebuild DB (Destructive!)
+```bash
+fly ssh console -C "python recreate_db.py"
+```
+
 2. Install dependencies:
    ```bash
    pip install -r requirements.txt

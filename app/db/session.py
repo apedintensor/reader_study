@@ -5,21 +5,15 @@ from sqlalchemy import create_engine
 
 from app.core.config import settings
 
-# Create both sync and async engines with appropriate connect_args
-def get_connect_args(database_uri: str) -> dict:
-    """Get appropriate connect_args based on database type"""
-    if database_uri.startswith("sqlite"):
-        return {"check_same_thread": False}
-    return {}
-
+# Create both sync and async engines
 sync_engine = create_engine(
     settings.SQLALCHEMY_SYNC_DATABASE_URI, 
-    connect_args=get_connect_args(settings.SQLALCHEMY_SYNC_DATABASE_URI)
+    connect_args={"check_same_thread": False}
 )
 
 async_engine = create_async_engine(
     settings.SQLALCHEMY_ASYNC_DATABASE_URI,
-    connect_args=get_connect_args(settings.SQLALCHEMY_ASYNC_DATABASE_URI)
+    connect_args={"check_same_thread": False}
 )
 
 # Create session factories
