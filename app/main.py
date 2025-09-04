@@ -27,7 +27,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins,
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,10 +68,19 @@ async def admin():
     # For now, redirecting to API docs as placeholder
     return RedirectResponse(url="/docs")
 
-# Include the authentication router
+"""Main FastAPI application setup."""
+
+# Include the authentication router (primary)
 app.include_router(auth_router, prefix="/auth", tags=["auth"])
-# Include the main API router
+
+# Compatibility: duplicate auth routes under /api/auth (hidden from docs)
+app.include_router(auth_router, prefix="/api/auth", include_in_schema=False)
+
+# Canonical (current) routes without prefix remain visible in docs
 app.include_router(api_router)
+
+# Compatibility layer: duplicate routes under /api prefix (hidden from docs to avoid duplication)
+app.include_router(api_router, prefix="/api", include_in_schema=False)
 
 # Add startup event to create tables and initialize data
 @app.on_event("startup")
