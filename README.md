@@ -171,7 +171,7 @@ Tests may construct a SQLite in-memory/file DB; see `tests/conftest.py`.
 ---
 ## License
 
-Internal / TBD (add license info here).
+MIT
 
 ---
 ## Change Log (Recent)
