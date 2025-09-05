@@ -8,7 +8,7 @@ Data sources (hard‑coded relative paths):
   * data/ai_prediction_by_id.csv      (cases + full probability vectors)
 
 What it loads (idempotent):
-  1. Roles: GP, Dermatology Specialist, Nurse.
+    1. Roles: GP, Nurse, Other. (Removes legacy 'Dermatology Specialist')
   2. DiagnosisTerm rows from each JSON entry (id -> canonical name).
   3. DiagnosisSynonym rows for every synonym AND abbreviation.
   4. Case rows (id, ground_truth_diagnosis_id, ai_predictions_json).
@@ -55,10 +55,20 @@ def log(msg: str):  # small consistent logger
 
 
 def ensure_roles(db: Session, role_names: List[str]) -> int:
-    existing = {r.name.lower() for r in db.execute(select(m.Role)).scalars().all()}
+    """Ensure desired roles exist. If legacy 'Dermatology Specialist' present, remove it.
+
+    Returns number of newly inserted roles (excludes deletions).
+    """
+    roles = db.execute(select(m.Role)).scalars().all()
+    existing_lc = {r.name.lower(): r for r in roles}
+    # Remove deprecated role if exists
+    legacy = existing_lc.get("dermatology specialist")
+    if legacy:
+        db.delete(legacy)
+        log("Removed legacy role 'Dermatology Specialist'")
     created = 0
     for name in role_names:
-        if name.lower() not in existing:
+        if name.lower() not in existing_lc:
             db.add(m.Role(name=name))
             created += 1
     return created
@@ -183,7 +193,7 @@ def main():
     db: Session = SessionLocal()
     try:
         # 1. Roles
-        roles_created = ensure_roles(db, ["GP", "Dermatology Specialist", "Nurse"])
+        roles_created = ensure_roles(db, ["GP", "Nurse", "Other"])
         # 2 & 3. Terms + synonyms
         terms_new, syns_new = load_terms_from_json(db, TERMS_JSON_PATH)
         # 4-6. Cases, images, AI outputs

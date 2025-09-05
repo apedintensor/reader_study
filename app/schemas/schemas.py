@@ -1,6 +1,6 @@
 from typing import List, Optional, Literal
 import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from app.auth.schemas import UserRead
 
 
@@ -138,6 +138,20 @@ class AssessmentCreate(BaseModel):
     changed_management_plan: Optional[bool] = None
     ai_usefulness: Optional[str] = None
     diagnosis_entries: List[DiagnosisEntryCreate] = []
+
+    @model_validator(mode="after")
+    def validate_ranks(self):  # type: ignore[override]
+        # Ensure unique ranks and rank 1 presence (at least one entry rank 1)
+        seen = set()
+        for de in self.diagnosis_entries:
+            if de.rank in seen:
+                raise ValueError(f"Duplicate diagnosis entry rank: {de.rank}")
+            if de.rank < 1 or de.rank > 3:
+                raise ValueError("Diagnosis entry rank must be between 1 and 3")
+            seen.add(de.rank)
+        if 1 not in seen:
+            raise ValueError("Rank 1 diagnosis entry is required")
+        return self
 
 
 class AssessmentRead(BaseModel):

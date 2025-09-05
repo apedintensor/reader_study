@@ -1,7 +1,7 @@
 """Unified data import script.
 
 Loads:
-  * Roles (GP, Dermatology Specialist, Nurse)
+    * Roles (GP, Nurse, Other) – removes legacy 'Dermatology Specialist' if present
   * Diagnosis terms + synonyms from derm_dictionary.csv
   * Cases, Images, full probability vector, and Top-3 AI outputs from ai_prediction_by_id.csv
 
@@ -27,16 +27,21 @@ from app.models import models as m
 # ---------------- Utility helpers -----------------
 
 def ensure_roles(db: Session, role_names: List[str]) -> None:
-    existing = {r.name.lower(): r for r in db.execute(select(m.Role)).scalars().all()}
+    roles = db.execute(select(m.Role)).scalars().all()
+    existing_lc = {r.name.lower(): r for r in roles}
+    legacy = existing_lc.get("dermatology specialist")
+    if legacy:
+        db.delete(legacy)
+        print("Removed legacy role 'Dermatology Specialist'")
     created = 0
     for name in role_names:
-        if name.lower() not in existing:
+        if name.lower() not in existing_lc:
             db.add(m.Role(name=name))
             created += 1
     if created:
         print(f"Inserted {created} new roles")
     else:
-        print("Roles already present")
+        print("Roles already present (after legacy cleanup)")
 
 
 def load_terms_and_synonyms(db: Session, csv_path: Path, dry_run: bool = False) -> Tuple[int, int]:
@@ -186,7 +191,7 @@ def main():
 
     db: Session = SessionLocal()
     try:
-        ensure_roles(db, ["GP", "Dermatology Specialist", "Nurse"])
+        ensure_roles(db, ["GP", "Nurse", "Other"])
         load_terms_and_synonyms(db, args.terms, dry_run=args.dry_run)
         load_cases(
             db,

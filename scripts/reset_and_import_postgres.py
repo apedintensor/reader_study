@@ -81,7 +81,7 @@ def main():
     db = SessionLocal()
     try:
         from import_initial_data import ensure_roles, load_terms_and_synonyms, load_cases
-        ensure_roles(db, ["GP", "Dermatology Specialist", "Nurse"])
+        ensure_roles(db, ["GP", "Nurse", "Other"])
         load_terms_and_synonyms(db, args.terms, dry_run=args.dry_run)
         load_cases(db, args.cases, batch_size=200, max_cases=args.max_cases, dry_run=args.dry_run)
         if args.dry_run:
