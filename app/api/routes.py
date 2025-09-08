@@ -9,6 +9,7 @@ from app.api.endpoints import (
     role,
     user,
     game,
+    meta,
 )
 
 api_router = APIRouter()
@@ -22,6 +23,7 @@ api_router.include_router(image.router, prefix="/images", tags=["Images"])
 api_router.include_router(role.router, prefix="/roles", tags=["Roles"])
 api_router.include_router(user.router, prefix="/users", tags=["Users"])
 api_router.include_router(game.router, prefix="/game", tags=["Game"])
+api_router.include_router(meta.router)
 
 @api_router.get("/ping")
 def ping():

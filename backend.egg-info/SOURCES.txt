@@ -50,5 +50,8 @@ backend.egg-info/requires.txt
 backend.egg-info/top_level.txt
 tests/test_assessment.py
 tests/test_auth.py
+tests/test_block_finalization.py
 tests/test_case.py
+tests/test_reports.py
 tests/test_role.py
+tests/test_workflow.py

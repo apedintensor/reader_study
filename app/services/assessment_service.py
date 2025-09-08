@@ -84,21 +84,29 @@ def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Asse
     db.flush()
 
     # compute correctness (top1, top3) if ground truth exists
+    # IMPORTANT: use a fresh query for entries to avoid stale relationship cache
     if assignment.case.ground_truth_diagnosis_id:
+        from app.models.models import DiagnosisEntry as _DE
         gt_id = assignment.case.ground_truth_diagnosis_id
-        found_rank = None
-        for de in assessment.diagnosis_entries:
-            if de.diagnosis_term_id == gt_id:
-                found_rank = de.rank
-                break
-        if found_rank is not None:
-            assessment.top1_correct = found_rank == 1
-            assessment.top3_correct = found_rank <= 3
-            assessment.rank_of_truth = found_rank
-        else:
-            assessment.top1_correct = False
-            assessment.top3_correct = False
+        entries = db.execute(
+            select(_DE).where(_DE.assessment_id == assessment.id).order_by(_DE.rank.asc())
+        ).scalars().all()
+        top_ids = [e.diagnosis_term_id for e in entries]
+        if not top_ids:
+            assessment.top1_correct = None
+            assessment.top3_correct = None
             assessment.rank_of_truth = None
+        else:
+            try:
+                found_index = top_ids.index(gt_id)
+                found_rank = found_index + 1
+                assessment.top1_correct = found_rank == 1
+                assessment.top3_correct = found_rank <= 3
+                assessment.rank_of_truth = found_rank
+            except ValueError:
+                assessment.top1_correct = False
+                assessment.top3_correct = False
+                assessment.rank_of_truth = None
 
     # mark completion times on assignment
     now = datetime.utcnow()

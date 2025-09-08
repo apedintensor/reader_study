@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime
 
 from fastapi_users import schemas
-from pydantic import EmailStr, Field
+from pydantic import EmailStr, Field, field_validator
 
 
 class UserRead(schemas.BaseUser[int]):
@@ -14,6 +14,7 @@ class UserRead(schemas.BaseUser[int]):
     gender: Optional[str] = None
     years_experience: Optional[int] = None
     years_derm_experience: Optional[int] = None
+    country_code: Optional[str] = Field(default=None, max_length=2)
     created_at: datetime
     is_active: bool = True
     is_superuser: bool = False
@@ -31,6 +32,7 @@ class UserCreate(schemas.BaseUserCreate):
     gender: Optional[str] = None
     years_experience: Optional[int] = None
     years_derm_experience: Optional[int] = None
+    country_code: Optional[str] = Field(default=None, max_length=2)
     is_active: bool = True
     is_superuser: bool = False
     is_verified: bool = False
@@ -44,6 +46,17 @@ class UserUpdate(schemas.BaseUserUpdate):
     gender: Optional[str] = None
     years_experience: Optional[int] = None
     years_derm_experience: Optional[int] = None
+    country_code: Optional[str] = Field(default=None, max_length=2)
     is_active: Optional[bool] = None
     is_superuser: Optional[bool] = None
     is_verified: Optional[bool] = None
+
+    @field_validator("country_code")
+    @classmethod
+    def _norm_cc(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or v == "":
+            return None
+        v = v.upper()
+        if len(v) != 2:
+            raise ValueError("country_code must be 2 letters (ISO 3166-1 alpha-2)")
+        return v

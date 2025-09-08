@@ -32,7 +32,8 @@ def create_user(db: Session, user: UserCreate):
         age_bracket=user.age_bracket,
         gender=user.gender,
         years_experience=user.years_experience,
-        years_derm_experience=user.years_derm_experience,
+    years_derm_experience=user.years_derm_experience,
+    country_code=user.country_code,
     )
     db.add(db_user)
     db.commit()

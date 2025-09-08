@@ -15,7 +15,7 @@ Data Sources:
 Target Tables:
 | Table | Purpose |
 |-------|---------|
-| `roles` | Insert study roles (GP, Dermatology Specialist, Nurse). |
+| `roles` | Insert study roles (GP, Nurse, Other). |
 | `diagnosis_terms` | Canonical dermatologic diagnoses with fixed ids (0..133 etc.). |
 | `diagnosis_synonyms` | Synonyms / abbreviations derived from CSV rows where `type` is `synonym` or `abbreviation`. |
 | `cases` | One row per case (id matches CSV). Stores `ground_truth_diagnosis_id` and full probability vector in `ai_predictions_json` (dict: term_id -> probability). |

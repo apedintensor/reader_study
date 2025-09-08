@@ -16,6 +16,7 @@ Table users {
   email varchar [unique, not null]
   password_hash varchar
   role_id integer [not null]
+  country_code varchar // ISO 3166-1 alpha-2 (e.g., AU, US)
   // Demographics
   age_bracket varchar        // e.g. "30-39"
   years_experience integer   // total years in clinical practice

@@ -7,7 +7,7 @@ Stack: FastAPI + SQLAlchemy + PostgreSQL (via Alembic), Vue (frontend)
 Aspect	Strategy
 Method	JWT (JSON Web Tokens)
 Library	fastapi-users or custom
-User Roles	GP, Nurse, Dermatologist, Admin
+User Roles	GP, Nurse, Other, Admin
 Endpoints	/auth/login, /auth/register, /auth/me
 Passwords	Hash via bcrypt
 

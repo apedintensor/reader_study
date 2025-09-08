@@ -27,6 +27,8 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     years_experience = Column(Integer, nullable=True)
     years_derm_experience = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    # ISO 3166-1 alpha-2 country code, e.g. "AU", "US"
+    country_code = Column(String(2), nullable=True, index=True)
     
     # Relationships
     role = relationship("Role", back_populates="users")

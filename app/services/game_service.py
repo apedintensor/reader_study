@@ -138,19 +138,39 @@ def finalize_block_if_complete(db: Session, user_id: int, block_index: int):
         return existing
     if not all(a.completed_post_at for a in block_assignments):
         return None
-    # compute metrics
+    # compute metrics by recomputing correctness from diagnosis entries
     assessments = db.execute(select(Assessment).where(Assessment.assignment_id.in_([a.id for a in block_assignments]))).scalars().all()
+    # build ground truths map
+    case_gt = {}
+    for a in block_assignments:
+        case_gt[a.case_id] = a.case.ground_truth_diagnosis_id
+    # compute list of booleans for each phase
+    from app.models.models import DiagnosisEntry as _DE
+    def recompute_flags(ass_list):
+        flags1, flags3 = [], []
+        for ass in ass_list:
+            gt_id = case_gt.get(ass.assignment.case_id)
+            if not gt_id:
+                continue
+            entries = db.execute(select(_DE).where(_DE.assessment_id == ass.id).order_by(_DE.rank.asc())).scalars().all()
+            top_ids = [e.diagnosis_term_id for e in entries]
+            if not top_ids:
+                continue
+            top1_ok = top_ids[0] == gt_id
+            top3_ok = gt_id in top_ids[:3]
+            flags1.append(1 if top1_ok else 0)
+            flags3.append(1 if top3_ok else 0)
+        return flags1, flags3
     pre = [a for a in assessments if a.phase == 'PRE']
     post = [a for a in assessments if a.phase == 'POST']
-    def _acc(items, attr):
-        if not items:
-            return None
-        vals = [1 if getattr(i, attr) else 0 for i in items if getattr(i, attr) is not None]
-        return sum(vals)/len(vals) if vals else None
-    top1_pre = _acc(pre, 'top1_correct')
-    top1_post = _acc(post, 'top1_correct')
-    top3_pre = _acc(pre, 'top3_correct')
-    top3_post = _acc(post, 'top3_correct')
+    pre1, pre3 = recompute_flags(pre)
+    post1, post3 = recompute_flags(post)
+    def _avg(vals):
+        return (sum(vals)/len(vals)) if vals else None
+    top1_pre = _avg(pre1)
+    top1_post = _avg(post1)
+    top3_pre = _avg(pre3)
+    top3_post = _avg(post3)
     # Compute peer averages (excluding current user)
     peer_rows = db.execute(select(BlockFeedback).where(BlockFeedback.user_id != user_id, BlockFeedback.block_index == block_index)).scalars().all()
 
