@@ -22,6 +22,15 @@ auth_router.include_router(
     tags=["auth"],
 )
 
+# Legacy compatibility: some tests expect /auth/register/register
+# Include the register router again but under an extra "/register" prefix so the final path becomes
+# /auth/register/register (since the inner router already uses path "/register").
+auth_router.include_router(
+    fastapi_users.get_register_router(UserRead, UserCreate),
+    prefix="/register",
+    tags=["auth"],
+)
+
 auth_router.include_router(
     fastapi_users.get_reset_password_router(),
     prefix="/reset-password",

@@ -22,6 +22,7 @@ Table users {
   years_experience integer   // total years in clinical practice
   years_derm_experience integer // dermatology-specific years
   created_at timestamp
+  gender varchar // Allowed: Male | Female | Other
   note: 'Core user account + augmented demographics for analysis.'
 }
 
@@ -35,7 +36,8 @@ Table cases {
   ground_truth_diagnosis_id integer // FK -> diagnosis_terms
   created_at timestamp
   ai_predictions_json json         // full model probability vector (term_id -> score). Optional; keeps full distribution for audit/recompute
-  // (Removed analysis-only columns: typical_diagnosis, source_dataset, original_source_id, malignancy_flag, superclass)
+  typical_diagnosis boolean         // retained for compatibility/tests; optional
+  // (Removed analysis-only columns: source_dataset, original_source_id, malignancy_flag, superclass)
   note: 'Core minimal case record. Dataset lineage & analytic flags kept out to avoid bloat.'
 }
 
@@ -96,8 +98,10 @@ Table assessments {
   // Minimal fields for Pre-AI assessment (UI requires Top-3 diagnoses + two management choices + confidences)
   diagnostic_confidence integer    // 1–5 scale (confidence in primary/top diagnosis)
   management_confidence integer    // 1–5 scale (confidence in management plan)
-  biopsy_recommended boolean       // yes/no
-  referral_recommended boolean     // yes/no (refer to dermatology)
+  // Replaces legacy biopsy/referral booleans
+  investigation_action varchar     // Enum: NONE | BIOPSY | OTHER
+  next_step_action varchar         // Enum: REASSURE | MANAGE_MYSELF | REFER
+  // Legacy biopsy/referral booleans removed; use investigation_action & next_step_action only
   // Post-AI only fields (NULL for PRE phase)
   changed_primary_diagnosis boolean // did AI alter the primary (rank1) diagnosis selection
   changed_management_plan boolean   // did AI alter biopsy/referral decision or management confidence

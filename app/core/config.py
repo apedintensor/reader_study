@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     IMAGE_BASE_URL: str = os.getenv("IMAGE_BASE_URL", "")
 
     # Game
-    GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "2"))
+    GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "3"))
 
     class Config:
         case_sensitive = True

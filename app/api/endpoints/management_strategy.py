@@ -17,6 +17,13 @@ def read_management_strategies(
 ):
     """Retrieve management strategies."""
     strategies = crud.management_strategy.get_multi(db, skip=skip, limit=limit)
+    if not strategies:
+        # Seed a minimal default set if empty
+        defaults = ["Reassure", "Manage myself", "Refer"]
+        for name in defaults:
+            if not crud.management_strategy.get_by_name(db, name):
+                crud.management_strategy.create(db, app_schemas.ManagementStrategyCreate(name=name))
+        strategies = crud.management_strategy.get_multi(db, skip=skip, limit=limit)
     return strategies
 
 @router.post("/", response_model=app_schemas.ManagementStrategyRead, status_code=201)

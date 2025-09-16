@@ -57,6 +57,8 @@ class Case(Base):
     ground_truth_diagnosis_id = Column(Integer, ForeignKey("diagnosis_terms.id"))
     created_at = Column(DateTime, default=datetime.utcnow)
     ai_predictions_json = Column(JSON)  # full probability vector (term_id -> score)
+    # Legacy/analysis flag retained for compatibility with tests
+    typical_diagnosis = Column(Boolean)
 
     ground_truth_diagnosis = relationship("DiagnosisTerm", back_populates="cases")
     images = relationship("Image", back_populates="case")
@@ -127,8 +129,10 @@ class Assessment(Base):
     phase = Column(String, nullable=False)  # PRE / POST
     diagnostic_confidence = Column(Integer)
     management_confidence = Column(Integer)
-    biopsy_recommended = Column(Boolean)
-    referral_recommended = Column(Boolean)
+    # New management action fields
+    investigation_action = Column(String)  # NONE | BIOPSY | OTHER
+    next_step_action = Column(String)      # REASSURE | MANAGE_MYSELF | REFER
+    # Legacy fields removed (use investigation_action / next_step_action only)
     # Post-AI only
     changed_primary_diagnosis = Column(Boolean)
     changed_management_plan = Column(Boolean)
@@ -179,6 +183,23 @@ class BlockFeedback(Base):
     peer_avg_top3_post = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)
     __table_args__ = (UniqueConstraint("user_id", "block_index", name="uix_user_block"),)
+
+
+class ManagementStrategy(Base):
+    __tablename__ = "management_strategies"
+    id = Column(Integer, primary_key=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+
+
+class CaseMetaData(Base):
+    __tablename__ = "case_metadata"
+    id = Column(Integer, primary_key=True)
+    case_id = Column(Integer, ForeignKey("cases.id"), nullable=False, unique=True)
+    age = Column(Integer)
+    gender = Column(String)
+    fever_history = Column(Boolean)
+    psoriasis_history = Column(Boolean)
+    other_notes = Column(Text)
 
 # ---------------- User back-pop references ----------------
 User.role = relationship("Role", back_populates="users")

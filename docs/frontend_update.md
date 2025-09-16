@@ -100,8 +100,8 @@ export interface AssessmentCreate {
   phase: 'PRE' | 'POST';
   diagnostic_confidence?: number | null;    // scale defined by UI (e.g., 1-5)
   management_confidence?: number | null;    // scale defined by UI
-  biopsy_recommended?: boolean | null;
-  referral_recommended?: boolean | null;
+  investigation_action?: 'NONE' | 'BIOPSY' | 'OTHER' | null;
+  next_step_action?: 'REASSURE' | 'MANAGE_MYSELF' | 'REFER' | null;
   // POST-only (send null/omit for PRE)
   changed_primary_diagnosis?: boolean | null;
   changed_management_plan?: boolean | null;
@@ -116,8 +116,8 @@ export interface AssessmentRead {
   phase: 'PRE' | 'POST';
   diagnostic_confidence?: number | null;
   management_confidence?: number | null;
-  biopsy_recommended?: boolean | null;
-  referral_recommended?: boolean | null;
+  investigation_action?: 'NONE' | 'BIOPSY' | 'OTHER' | null;
+  next_step_action?: 'REASSURE' | 'MANAGE_MYSELF' | 'REFER' | null;
   changed_primary_diagnosis?: boolean | null;
   changed_management_plan?: boolean | null;
   ai_usefulness?: string | null;
@@ -184,8 +184,8 @@ POST `/api/v1/assessment/`
   "phase": "PRE",
   "diagnostic_confidence": 4,
   "management_confidence": 3,
-  "biopsy_recommended": false,
-  "referral_recommended": true,
+  "investigation_action": "NONE",
+  "next_step_action": "REFER",
   "diagnosis_entries": [
     {"rank": 1, "diagnosis_term_id": 12},
     {"rank": 2, "diagnosis_term_id": 55},

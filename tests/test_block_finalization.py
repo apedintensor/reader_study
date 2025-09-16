@@ -30,8 +30,8 @@ async def test_block_finalization_creates_block_feedback(client: AsyncClient, us
             'diagnosis_entries': [{'rank': 1, 'diagnosis_term_id': term_id, 'raw_text': 'x'}],
             'diagnostic_confidence': 3,
             'management_confidence': 3,
-            'biopsy_recommended': False,
-            'referral_recommended': False,
+            'investigation_action': 'NONE',
+            'next_step_action': 'REASSURE',
             'changed_primary_diagnosis': False,
             'changed_management_plan': False,
             'ai_usefulness': None

@@ -32,4 +32,3 @@ class User(SQLAlchemyBaseUserTable[int], Base):
     
     # Relationships
     role = relationship("Role", back_populates="users")
-    assessments = relationship("Assessment", back_populates="user")

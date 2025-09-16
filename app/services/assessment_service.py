@@ -36,8 +36,8 @@ def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Asse
         # Update mutable fields
         assessment.diagnostic_confidence = payload.diagnostic_confidence
         assessment.management_confidence = payload.management_confidence
-        assessment.biopsy_recommended = payload.biopsy_recommended
-        assessment.referral_recommended = payload.referral_recommended
+        assessment.investigation_action = payload.investigation_action
+        assessment.next_step_action = payload.next_step_action
         assessment.changed_primary_diagnosis = payload.changed_primary_diagnosis
         assessment.changed_management_plan = payload.changed_management_plan
         assessment.ai_usefulness = payload.ai_usefulness
@@ -47,8 +47,8 @@ def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Asse
             phase=phase,
             diagnostic_confidence=payload.diagnostic_confidence,
             management_confidence=payload.management_confidence,
-            biopsy_recommended=payload.biopsy_recommended,
-            referral_recommended=payload.referral_recommended,
+            investigation_action=payload.investigation_action,
+            next_step_action=payload.next_step_action,
             changed_primary_diagnosis=payload.changed_primary_diagnosis,
             changed_management_plan=payload.changed_management_plan,
             ai_usefulness=payload.ai_usefulness,

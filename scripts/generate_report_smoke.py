@@ -84,8 +84,8 @@ def play_block(headers):
             "phase": "PRE",
             "diagnostic_confidence": 3,
             "management_confidence": 3,
-            "biopsy_recommended": False,
-            "referral_recommended": False,
+            "investigation_action": "NONE",
+            "next_step_action": "REASSURE",
             "diagnosis_entries": pre_entries,
         }
         r = client.post("/assessment/", headers=headers, json=pre_payload)
@@ -99,8 +99,8 @@ def play_block(headers):
             "phase": "POST",
             "diagnostic_confidence": 4,
             "management_confidence": 4,
-            "biopsy_recommended": True,
-            "referral_recommended": False,
+            "investigation_action": "BIOPSY",
+            "next_step_action": "REFER",
             "changed_primary_diagnosis": True,
             "changed_management_plan": True,
             "ai_usefulness": "Useful",

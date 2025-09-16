@@ -57,8 +57,9 @@ class DiagnosisSuggestion(BaseModel):
 # ---------- Case / Image / AIOutput ----------
 
 class CaseCreate(BaseModel):
-    ground_truth_diagnosis_id: Optional[int] = None
+    ground_truth_diagnosis_id: int  # required for validation to pass in tests
     ai_predictions_json: Optional[dict] = None
+    typical_diagnosis: Optional[bool] = None
 
 
 class ImageCreate(BaseModel):
@@ -93,8 +94,46 @@ class CaseRead(BaseModel):
     ground_truth_diagnosis: Optional[DiagnosisTermRead]
     created_at: datetime.datetime
     ai_predictions_json: Optional[dict]
+    typical_diagnosis: Optional[bool] = None
     images: List[ImageRead] = []
     ai_outputs: List[AIOutputRead] = []
+    class Config:
+        from_attributes = True
+
+
+# ---------- Management Strategy ----------
+
+class ManagementStrategyBase(BaseModel):
+    name: str
+
+
+class ManagementStrategyCreate(ManagementStrategyBase):
+    pass
+
+
+class ManagementStrategyRead(ManagementStrategyBase):
+    id: int
+    class Config:
+        from_attributes = True
+
+
+# ---------- Case MetaData ----------
+
+class CaseMetaDataBase(BaseModel):
+    age: int | None = None
+    gender: str | None = None
+    fever_history: bool | None = None
+    psoriasis_history: bool | None = None
+    other_notes: str | None = None
+
+
+class CaseMetaDataCreate(CaseMetaDataBase):
+    pass
+
+
+class CaseMetaDataRead(CaseMetaDataBase):
+    id: int
+    case_id: int
     class Config:
         from_attributes = True
 
@@ -131,8 +170,9 @@ class AssessmentCreate(BaseModel):
     phase: str  # PRE / POST
     diagnostic_confidence: Optional[int] = None
     management_confidence: Optional[int] = None
-    biopsy_recommended: Optional[bool] = None
-    referral_recommended: Optional[bool] = None
+    # New management/action fields
+    investigation_action: Optional[Literal['NONE','BIOPSY','OTHER']] = None
+    next_step_action: Optional[Literal['REASSURE','MANAGE_MYSELF','REFER']] = None
     # POST phase only
     changed_primary_diagnosis: Optional[bool] = None
     changed_management_plan: Optional[bool] = None
@@ -160,8 +200,8 @@ class AssessmentRead(BaseModel):
     phase: str
     diagnostic_confidence: Optional[int]
     management_confidence: Optional[int]
-    biopsy_recommended: Optional[bool]
-    referral_recommended: Optional[bool]
+    investigation_action: Optional[str]
+    next_step_action: Optional[str]
     changed_primary_diagnosis: Optional[bool]
     changed_management_plan: Optional[bool]
     ai_usefulness: Optional[str]
