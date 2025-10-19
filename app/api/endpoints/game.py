@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from app.api import deps
 from app.schemas.schemas import StartGameResponse, ActiveGameResponse, ReportCardResponse, GameProgressResponse, NextAssignmentResponse
 from app.services import game_service
-from app.models.models import ReaderCaseAssignment, BlockFeedback, Case, Assessment, DiagnosisEntry
+from app.models.models import ReaderCaseAssignment, BlockFeedback, Case, Assessment
 
 router = APIRouter()
 
@@ -59,28 +59,18 @@ def report_block(block_index: int, db: Session = Depends(deps.get_db), current_u
         cases = db.execute(select(Case).where(Case.id.in_(case_ids))).scalars().all()
         gt_map = {c.id: c.ground_truth_diagnosis_id for c in cases}
     ordered = sorted(assignments, key=lambda a: a.display_order)
-    # Build per-case user diagnosis info (pre/post top1 + top3 lists)
+    # Build per-case assessment pointers for later detail lookups
     case_summaries = []
     for a in ordered:
         assessments = db.execute(select(Assessment).where(Assessment.assignment_id == a.id)).scalars().all()
         pre = next((x for x in assessments if x.phase == 'PRE'), None)
         post = next((x for x in assessments if x.phase == 'POST'), None)
-        def extract(ass: Assessment):
-            if not ass:
-                return None, []
-            entries = db.execute(select(DiagnosisEntry).where(DiagnosisEntry.assessment_id == ass.id).order_by(DiagnosisEntry.rank.asc())).scalars().all()
-            top_ids = [e.diagnosis_term_id for e in entries]
-            top1 = top_ids[0] if top_ids else None
-            return top1, top_ids
-        pre_top1, pre_list = extract(pre)
-        post_top1, post_list = extract(post)
         case_summaries.append({
+            "assignment_id": a.id,
             "case_id": a.case_id,
             "ground_truth_diagnosis_id": gt_map.get(a.case_id),
-            "pre_top1_diagnosis_term_id": pre_top1,
-            "post_top1_diagnosis_term_id": post_top1,
-            "pre_top_diagnosis_term_ids": pre_list,
-            "post_top_diagnosis_term_ids": post_list,
+            "pre_assessment_id": pre.id if pre else None,
+            "post_assessment_id": post.id if post else None,
         })
     data = {**feedback.__dict__}
     data["total_cases"] = len(case_summaries)
@@ -126,22 +116,12 @@ def list_completed_reports(db: Session = Depends(deps.get_db), current_user=Depe
             assessments = db.execute(select(Assessment).where(Assessment.assignment_id == a.id)).scalars().all()
             pre = next((x for x in assessments if x.phase == 'PRE'), None)
             post = next((x for x in assessments if x.phase == 'POST'), None)
-            def extract(ass: Assessment):
-                if not ass:
-                    return None, []
-                entries = db.execute(select(DiagnosisEntry).where(DiagnosisEntry.assessment_id == ass.id).order_by(DiagnosisEntry.rank.asc())).scalars().all()
-                top_ids = [e.diagnosis_term_id for e in entries]
-                top1 = top_ids[0] if top_ids else None
-                return top1, top_ids
-            pre_top1, pre_list = extract(pre)
-            post_top1, post_list = extract(post)
             case_summaries.append({
+                "assignment_id": a.id,
                 "case_id": a.case_id,
                 "ground_truth_diagnosis_id": gt_map.get(a.case_id),
-                "pre_top1_diagnosis_term_id": pre_top1,
-                "post_top1_diagnosis_term_id": post_top1,
-                "pre_top_diagnosis_term_ids": pre_list,
-                "post_top_diagnosis_term_ids": post_list,
+                "pre_assessment_id": pre.id if pre else None,
+                "post_assessment_id": post.id if post else None,
             })
         d = {**fb.__dict__}
         d["total_cases"] = len(case_summaries)
@@ -167,22 +147,12 @@ def latest_report(db: Session = Depends(deps.get_db), current_user=Depends(deps.
         assessments = db.execute(select(Assessment).where(Assessment.assignment_id == a.id)).scalars().all()
         pre = next((x for x in assessments if x.phase == 'PRE'), None)
         post = next((x for x in assessments if x.phase == 'POST'), None)
-        def extract(ass: Assessment):
-            if not ass:
-                return None, []
-            entries = db.execute(select(DiagnosisEntry).where(DiagnosisEntry.assessment_id == ass.id).order_by(DiagnosisEntry.rank.asc())).scalars().all()
-            top_ids = [e.diagnosis_term_id for e in entries]
-            top1 = top_ids[0] if top_ids else None
-            return top1, top_ids
-        pre_top1, pre_list = extract(pre)
-        post_top1, post_list = extract(post)
         case_summaries.append({
+            "assignment_id": a.id,
             "case_id": a.case_id,
             "ground_truth_diagnosis_id": gt_map.get(a.case_id),
-            "pre_top1_diagnosis_term_id": pre_top1,
-            "post_top1_diagnosis_term_id": post_top1,
-            "pre_top_diagnosis_term_ids": pre_list,
-            "post_top_diagnosis_term_ids": post_list,
+            "pre_assessment_id": pre.id if pre else None,
+            "post_assessment_id": post.id if post else None,
         })
     data = {**row.__dict__}
     data["total_cases"] = len(case_summaries)

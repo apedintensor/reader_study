@@ -156,11 +156,18 @@ class ReaderCaseAssignmentRead(BaseModel):
 class DiagnosisEntryCreate(BaseModel):
     rank: int
     raw_text: Optional[str] = None  # what the user typed initially
-    diagnosis_term_id: int          # final selected canonical term
+    diagnosis_term_id: Optional[int] = None  # final selected canonical term
+
+    @model_validator(mode="after")
+    def validate_content(self):  # type: ignore[override]
+        if (self.diagnosis_term_id is None) and not (self.raw_text and self.raw_text.strip()):
+            raise ValueError("Diagnosis entry requires either a canonical term id or non-empty raw text")
+        return self
 
 
 class DiagnosisEntryRead(DiagnosisEntryCreate):
     id: int
+    diagnosis_term_id: Optional[int] = None
     class Config:
         from_attributes = True
 

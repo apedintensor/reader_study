@@ -1,9 +1,38 @@
 from __future__ import annotations
 from sqlalchemy.orm import Session
-from sqlalchemy import select
+from sqlalchemy import select, func
 from datetime import datetime
-from app.models.models import Assessment, ReaderCaseAssignment, DiagnosisEntry, DiagnosisTerm
+from app.models.models import (
+    Assessment,
+    ReaderCaseAssignment,
+    DiagnosisEntry,
+    DiagnosisTerm,
+    DiagnosisSynonym,
+)
 from app.schemas.schemas import AssessmentCreate
+from app.db.schema_compat import ensure_diagnosis_entries_has_term_column
+
+
+def _resolve_term_id(db: Session, raw_text: str | None) -> int | None:
+    """Map free-text diagnosis to a canonical term id when possible."""
+    if not raw_text:
+        return None
+    normalized = raw_text.strip().lower()
+    if not normalized:
+        return None
+
+    term_id = db.execute(
+        select(DiagnosisTerm.id).where(func.lower(DiagnosisTerm.name) == normalized)
+    ).scalar_one_or_none()
+    if term_id is not None:
+        return term_id
+
+    synonym_term_id = db.execute(
+        select(DiagnosisSynonym.diagnosis_term_id).where(
+            func.lower(DiagnosisSynonym.synonym) == normalized
+        )
+    ).scalar_one_or_none()
+    return synonym_term_id
 
 def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Assessment:
     """Create or replace an assessment ensuring rank uniqueness without violating constraints.
@@ -19,6 +48,9 @@ def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Asse
         raise ValueError("Assignment not found")
 
     phase = payload.phase.upper()
+
+    # Ensure legacy databases have the canonical term column available for diagnosis entries.
+    ensure_diagnosis_entries_has_term_column(db)
     existing = db.execute(
         select(Assessment).where(
             Assessment.assignment_id == payload.assignment_id,
@@ -62,17 +94,20 @@ def create_or_replace_assessment(db: Session, payload: AssessmentCreate) -> Asse
 
     # Update or create
     for entry in payload.diagnosis_entries:
+        resolved_term_id = entry.diagnosis_term_id
+        if resolved_term_id is None:
+            resolved_term_id = _resolve_term_id(db, entry.raw_text)
         current = existing_by_rank.get(entry.rank)
         if current:
             current.raw_text = entry.raw_text
-            current.diagnosis_term_id = entry.diagnosis_term_id
+            current.diagnosis_term_id = resolved_term_id
         else:
             db.add(
                 DiagnosisEntry(
                     assessment_id=assessment.id,
                     rank=entry.rank,
                     raw_text=entry.raw_text,
-                    diagnosis_term_id=entry.diagnosis_term_id,
+                    diagnosis_term_id=resolved_term_id,
                 )
             )
 

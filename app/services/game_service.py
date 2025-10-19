@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from app.models.models import (
-    ReaderCaseAssignment, Case, Assessment, DiagnosisEntry, BlockFeedback, AIOutput
+    ReaderCaseAssignment, Case, BlockFeedback
 )
 from datetime import datetime
 from app.core.config import settings
@@ -138,85 +138,36 @@ def finalize_block_if_complete(db: Session, user_id: int, block_index: int):
         return existing
     if not all(a.completed_post_at for a in block_assignments):
         return None
-    # compute metrics by recomputing correctness from diagnosis entries
-    assessments = db.execute(select(Assessment).where(Assessment.assignment_id.in_([a.id for a in block_assignments]))).scalars().all()
-    # build ground truths map
-    case_gt = {}
-    for a in block_assignments:
-        case_gt[a.case_id] = a.case.ground_truth_diagnosis_id
-    # compute list of booleans for each phase
-    from app.models.models import DiagnosisEntry as _DE
-    def recompute_flags(ass_list):
-        flags1, flags3 = [], []
-        for ass in ass_list:
-            gt_id = case_gt.get(ass.assignment.case_id)
-            if not gt_id:
-                continue
-            entries = db.execute(select(_DE).where(_DE.assessment_id == ass.id).order_by(_DE.rank.asc())).scalars().all()
-            top_ids = [e.diagnosis_term_id for e in entries]
-            if not top_ids:
-                continue
-            top1_ok = top_ids[0] == gt_id
-            top3_ok = gt_id in top_ids[:3]
-            flags1.append(1 if top1_ok else 0)
-            flags3.append(1 if top3_ok else 0)
-        return flags1, flags3
-    pre = [a for a in assessments if a.phase == 'PRE']
-    post = [a for a in assessments if a.phase == 'POST']
-    pre1, pre3 = recompute_flags(pre)
-    post1, post3 = recompute_flags(post)
-    def _avg(vals):
-        return (sum(vals)/len(vals)) if vals else None
-    top1_pre = _avg(pre1)
-    top1_post = _avg(post1)
-    top3_pre = _avg(pre3)
-    top3_post = _avg(post3)
-    # Compute peer averages (excluding current user)
-    peer_rows = db.execute(select(BlockFeedback).where(BlockFeedback.user_id != user_id, BlockFeedback.block_index == block_index)).scalars().all()
-
-    def avg(arr):
-        vals = [x for x in arr if x is not None]
-        if not vals:
-            return None
-        return round(sum(vals) / len(vals), 4)
-
-    peer_top1_pre_vals = [r.top1_accuracy_pre for r in peer_rows]
-    peer_top1_post_vals = [r.top1_accuracy_post for r in peer_rows]
-    peer_top3_pre_vals = [r.top3_accuracy_pre for r in peer_rows]
-    peer_top3_post_vals = [r.top3_accuracy_post for r in peer_rows]
-    # If no peer data yet, use a neutral placeholder 0.60 (60%) so UI has a reference bar
-    use_placeholder = len(peer_rows) == 0
-    placeholder = 0.60
-    peer_avg_top1_pre = avg(peer_top1_pre_vals) if not use_placeholder else placeholder
-    peer_avg_top1_post = avg(peer_top1_post_vals) if not use_placeholder else placeholder
-    peer_avg_top3_pre = avg(peer_top3_pre_vals) if not use_placeholder else placeholder
-    peer_avg_top3_post = avg(peer_top3_post_vals) if not use_placeholder else placeholder
+    stats_payload = {
+        "cases_completed": len(block_assignments),
+        "accuracy_metrics_computed": False,
+    }
 
     kwargs = dict(
         user_id=user_id,
         block_index=block_index,
-        top1_accuracy_pre=top1_pre,
-        top1_accuracy_post=top1_post,
-        top3_accuracy_pre=top3_pre,
-        top3_accuracy_post=top3_post,
-        delta_top1=(top1_post - top1_pre) if top1_pre is not None and top1_post is not None else None,
-        delta_top3=(top3_post - top3_pre) if top3_pre is not None and top3_post is not None else None,
+        top1_accuracy_pre=None,
+        top1_accuracy_post=None,
+        top3_accuracy_pre=None,
+        top3_accuracy_post=None,
+        delta_top1=None,
+        delta_top3=None,
+        stats_json=stats_payload,
     )
     if _has_peer_avg_cols:
         kwargs.update(
-            peer_avg_top1_pre=peer_avg_top1_pre,
-            peer_avg_top1_post=peer_avg_top1_post,
-            peer_avg_top3_pre=peer_avg_top3_pre,
-            peer_avg_top3_post=peer_avg_top3_post,
+            peer_avg_top1_pre=None,
+            peer_avg_top1_post=None,
+            peer_avg_top3_pre=None,
+            peer_avg_top3_post=None,
         )
     else:
-        # Legacy schema: put peer averages into stats_json instead
-        kwargs["stats_json"] = {
-            "peer_avg_top1_pre": peer_avg_top1_pre,
-            "peer_avg_top1_post": peer_avg_top1_post,
-            "peer_avg_top3_pre": peer_avg_top3_pre,
-            "peer_avg_top3_post": peer_avg_top3_post,
-        }
+        stats_payload.update(
+            peer_avg_top1_pre=None,
+            peer_avg_top1_post=None,
+            peer_avg_top3_pre=None,
+            peer_avg_top3_post=None,
+        )
     feedback = BlockFeedback(**kwargs)
     db.add(feedback)
     try:

@@ -24,10 +24,12 @@ async def test_block_finalization_creates_block_feedback(client: AsyncClient, us
         term_id = term_resp.json()[0]['id']
 
     # Complete all assignments (PRE then POST)
+    first_pre_assessment_id = None
+    submitted_raw_text = "x"
     for a in assignments:
         base = {
             'assignment_id': a['id'],
-            'diagnosis_entries': [{'rank': 1, 'diagnosis_term_id': term_id, 'raw_text': 'x'}],
+            'diagnosis_entries': [{'rank': 1, 'diagnosis_term_id': term_id, 'raw_text': submitted_raw_text}],
             'diagnostic_confidence': 3,
             'management_confidence': 3,
             'investigation_action': 'NONE',
@@ -40,6 +42,9 @@ async def test_block_finalization_creates_block_feedback(client: AsyncClient, us
         post = {**base, 'phase': 'POST'}
         r1 = await client.post('/assessment/', json=pre, headers=user_token_headers)
         assert r1.status_code == 200, r1.text
+        pre_payload = r1.json()
+        if first_pre_assessment_id is None:
+            first_pre_assessment_id = pre_payload['id']
         r2 = await client.post('/assessment/', json=post, headers=user_token_headers)
         assert r2.status_code == 200, r2.text
 
@@ -54,3 +59,19 @@ async def test_block_finalization_creates_block_feedback(client: AsyncClient, us
     rep = report.json()
     assert rep['block_index'] == block_index
     assert 'delta_top1' in rep and 'delta_top3' in rep
+    assert rep['cases'], "Expected at least one case summary"
+    first_case = rep['cases'][0]
+    assert 'pre_assessment_id' in first_case
+    assert 'post_assessment_id' in first_case
+    assert 'pre_top_diagnosis_term_ids' not in first_case
+
+    # Verify new diagnosis entry lookup endpoint returns raw text
+    if first_pre_assessment_id:
+        diag_resp = await client.get(
+            f'/assessment/{first_pre_assessment_id}/diagnosis_entries',
+            headers=user_token_headers
+        )
+        assert diag_resp.status_code == 200
+        entries = diag_resp.json()
+        assert entries, "Expected diagnosis entries"
+        assert entries[0]['raw_text'] == submitted_raw_text
