@@ -147,6 +147,7 @@ Table block_feedback {
   peer_avg_top1_post float
   peer_avg_top3_pre float
   peer_avg_top3_post float
+  trust_ai_score integer         // 1-5 scale response to "Do you trust the AI?"
   created_at timestamp
   note: 'Gamified summary after each 10-case block; drives competition UI.'
   Indexes { (user_id, block_index) [unique] }

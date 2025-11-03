@@ -2,7 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
 from app.api import deps
-from app.schemas.schemas import StartGameResponse, ActiveGameResponse, ReportCardResponse, GameProgressResponse, NextAssignmentResponse
+from app.schemas.schemas import (
+    StartGameResponse,
+    ActiveGameResponse,
+    ReportCardResponse,
+    GameProgressResponse,
+    NextAssignmentResponse,
+    BlockTrustUpdate,
+)
 from app.services import game_service
 from app.models.models import ReaderCaseAssignment, BlockFeedback, Case, Assessment
 
@@ -96,6 +103,48 @@ def can_view_report(block_index: int, db: Session = Depends(deps.get_db), curren
         return {"available": False, "block_index": block_index, "reason": "Block not found"}
     remaining = sum(1 for a in assignments if a.completed_post_at is None)
     return {"available": False, "block_index": block_index, "reason": f"{remaining} cases pending"}
+
+
+@router.post("/block/{block_index}/trust", response_model=ReportCardResponse)
+@router.patch("/block/{block_index}/trust", response_model=ReportCardResponse)
+def update_block_trust_score(
+    block_index: int,
+    payload: BlockTrustUpdate,
+    db: Session = Depends(deps.get_db),
+    current_user=Depends(deps.get_current_user),
+):
+    feedback = game_service.set_block_trust_score(db, current_user.id, block_index, payload.trust_ai_score)
+    if not feedback:
+        raise HTTPException(status_code=400, detail="Block is not complete or does not exist")
+    # reuse report payload builder for consistent shape
+    assignments = db.execute(
+        select(ReaderCaseAssignment).where(
+            ReaderCaseAssignment.user_id == current_user.id,
+            ReaderCaseAssignment.block_index == block_index,
+        )
+    ).scalars().all()
+    case_ids = [a.case_id for a in assignments]
+    gt_map = {}
+    if case_ids:
+        cases = db.execute(select(Case).where(Case.id.in_(case_ids))).scalars().all()
+        gt_map = {c.id: c.ground_truth_diagnosis_id for c in cases}
+    ordered = sorted(assignments, key=lambda a: a.display_order)
+    case_summaries = []
+    for a in ordered:
+        assessments = db.execute(select(Assessment).where(Assessment.assignment_id == a.id)).scalars().all()
+        pre = next((x for x in assessments if x.phase == 'PRE'), None)
+        post = next((x for x in assessments if x.phase == 'POST'), None)
+        case_summaries.append({
+            "assignment_id": a.id,
+            "case_id": a.case_id,
+            "ground_truth_diagnosis_id": gt_map.get(a.case_id),
+            "pre_assessment_id": pre.id if pre else None,
+            "post_assessment_id": post.id if post else None,
+        })
+    data = {**feedback.__dict__}
+    data["total_cases"] = len(case_summaries)
+    data["cases"] = case_summaries
+    return data
 
 
 @router.get("/reports", response_model=list[ReportCardResponse])

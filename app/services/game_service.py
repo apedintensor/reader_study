@@ -28,8 +28,16 @@ def _ensure_schema_flags(db: Session):
         else:
             q = text("SELECT column_name FROM information_schema.columns WHERE table_name='block_feedback'")
             cols = [r[0] for r in db.execute(q).fetchall()]
+        col_set = set(cols)
+        if "trust_ai_score" not in col_set and db.bind is not None:
+            try:
+                with db.bind.begin() as conn:
+                    conn.execute(text("ALTER TABLE block_feedback ADD COLUMN trust_ai_score INTEGER"))
+                col_set.add("trust_ai_score")
+            except Exception:
+                pass
         needed = {"peer_avg_top1_pre","peer_avg_top1_post","peer_avg_top3_pre","peer_avg_top3_post"}
-        _has_peer_avg_cols = needed.issubset(set(cols))
+        _has_peer_avg_cols = needed.issubset(col_set)
     except Exception:
         _has_peer_avg_cols = False
     finally:
@@ -50,7 +58,8 @@ def start_block(db: Session, user_id: int) -> List[ReaderCaseAssignment]:
     """Create a new block of assignments (if the previous is finished).
 
     Maintains previous behavior when unfinished block exists.
-    New behavior: random selection of unassigned cases, size = settings.GAME_BLOCK_SIZE.
+    Selects unassigned cases in random order while ensuring ground-truth diagnoses
+    do not repeat within the block (where available).
     """
     # ensure no active (unfinished) assignments remain
     if get_active_block(db, user_id):
@@ -60,16 +69,38 @@ def start_block(db: Session, user_id: int) -> List[ReaderCaseAssignment]:
     block_index = _next_block_index(db, user_id)
     # gather already assigned case ids for this user
     assigned_case_ids = [cid for (cid,) in db.execute(select(ReaderCaseAssignment.case_id).where(ReaderCaseAssignment.user_id == user_id)).all()]
-    # random selection differs by backend; SQLite supports RANDOM()
     block_size = get_block_size()
-    candidates_query = select(Case).where(~Case.id.in_(assigned_case_ids))
-    # If using SQLite/Postgres, func.random works; fallback to ordered if driver lacks random
-    candidates_query = candidates_query.order_by(func.random()).limit(block_size)
-    candidates = db.execute(candidates_query).scalars().all()
-    if not candidates:
+
+    # Retrieve remaining cases in random order so we can enforce unique ground truths.
+    remaining_cases = db.execute(
+        select(Case)
+        .where(~Case.id.in_(assigned_case_ids))
+        .order_by(func.random())
+    ).scalars().all()
+
+    if not remaining_cases:
         return []
+
+    selected_cases: List[Case] = []
+    seen_ground_truths: set[int] = set()
+    for case in remaining_cases:
+        gt_id = case.ground_truth_diagnosis_id
+        # Treat cases without a ground truth as inherently unique.
+        if gt_id is not None and gt_id in seen_ground_truths:
+            continue
+        selected_cases.append(case)
+        if gt_id is not None:
+            seen_ground_truths.add(gt_id)
+        if len(selected_cases) == block_size:
+            break
+
+    # If we could not find enough unique ground truths to fill the block,
+    # use only the unique set collected so far.
+    if not selected_cases:
+        return []
+
     assignments: List[ReaderCaseAssignment] = []
-    for idx, c in enumerate(candidates):
+    for idx, c in enumerate(selected_cases):
         a = ReaderCaseAssignment(
             user_id=user_id,
             case_id=c.id,
@@ -153,6 +184,7 @@ def finalize_block_if_complete(db: Session, user_id: int, block_index: int):
         delta_top1=None,
         delta_top3=None,
         stats_json=stats_payload,
+        trust_ai_score=None,
     )
     if _has_peer_avg_cols:
         kwargs.update(
@@ -181,5 +213,30 @@ def finalize_block_if_complete(db: Session, user_id: int, block_index: int):
             )
         ).scalar_one_or_none()
         return existing
+    db.refresh(feedback)
+    return feedback
+
+
+def set_block_trust_score(db: Session, user_id: int, block_index: int, trust_ai_score: int) -> BlockFeedback | None:
+    """Persist the 1-5 trust score for a finalized block."""
+    if trust_ai_score < 1 or trust_ai_score > 5:
+        raise ValueError("trust_ai_score must be between 1 and 5")
+
+    feedback = db.execute(
+        select(BlockFeedback).where(
+            BlockFeedback.user_id == user_id,
+            BlockFeedback.block_index == block_index,
+        )
+    ).scalar_one_or_none()
+
+    if not feedback:
+        feedback = finalize_block_if_complete(db, user_id, block_index)
+
+    if not feedback:
+        return None
+
+    feedback.trust_ai_score = trust_ai_score
+    db.add(feedback)
+    db.commit()
     db.refresh(feedback)
     return feedback

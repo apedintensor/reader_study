@@ -245,6 +245,7 @@ class BlockFeedbackRead(BaseModel):
     peer_avg_top3_pre: Optional[float]
     peer_avg_top3_post: Optional[float]
     stats_json: Optional[dict]
+    trust_ai_score: Optional[int]
     created_at: datetime.datetime
     class Config:
         from_attributes = True
@@ -282,6 +283,21 @@ class NextAssignmentResponse(BaseModel):
     block_index: int | None
     assignment: Optional[ReaderCaseAssignmentRead]
     remaining: int
+
+
+class BlockTrustUpdate(BaseModel):
+    trust_ai_score: Optional[int] = None
+    score: Optional[int] = None
+
+    @model_validator(mode="after")
+    def normalize_score(self):  # type: ignore[override]
+        value = self.trust_ai_score if self.trust_ai_score is not None else self.score
+        if value is None:
+            raise ValueError("trust_ai_score is required")
+        if value < 1 or value > 5:
+            raise ValueError("trust_ai_score must be between 1 and 5")
+        self.trust_ai_score = value
+        return self
 
 
 

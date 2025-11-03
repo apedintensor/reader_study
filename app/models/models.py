@@ -181,6 +181,7 @@ class BlockFeedback(Base):
     peer_avg_top1_post = Column(Float)
     peer_avg_top3_pre = Column(Float)
     peer_avg_top3_post = Column(Float)
+    trust_ai_score = Column(Integer)
     created_at = Column(DateTime, default=datetime.utcnow)
     __table_args__ = (UniqueConstraint("user_id", "block_index", name="uix_user_block"),)
 
