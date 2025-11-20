@@ -46,7 +46,7 @@ Configuration is centralized in `app/core/config.py` (Pydantic Settings v2). Imp
 | `SECRET_KEY` | JWT & signing secret | (generate 32+ chars) |
 | `SUPERUSER_EMAIL` | Bootstrap superuser email | `admin@example.com` |
 | `SUPERUSER_PASSWORD` | Bootstrap superuser password | `change-me` |
-| `IMAGE_BASE_URL` | Optional base path/URL for image hosting | `/images/` |
+| `IMAGE_BASE_URL` | Optional base path/URL for image hosting | `https://reader-study-bucket.fly.storage.tigris.dev` |
 | `GAME_BLOCK_SIZE` | Cases per game block | `10` |
 
 If `DATABASE_URL` starts with `postgres://` or `postgresql://` it is adapted to async/sync URLs automatically (`asyncpg` + `psycopg2`). Otherwise SQLite file `test.db` is used.

@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     SUPERUSER_PASSWORD: str = os.getenv("SUPERUSER_PASSWORD", "adminpassword")
 
     # Media
-    IMAGE_BASE_URL: str = os.getenv("IMAGE_BASE_URL", "")
+    IMAGE_BASE_URL: str = os.getenv("IMAGE_BASE_URL", "https://reader-study-bucket.fly.storage.tigris.dev")
 
     # Game
     GAME_BLOCK_SIZE: int = int(os.getenv("GAME_BLOCK_SIZE", "3"))
